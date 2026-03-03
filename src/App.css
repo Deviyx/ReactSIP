@@ -97,6 +97,31 @@ body {
   overflow: hidden;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #98addb transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #91a9da, #6d88c3);
+  border-radius: 999px;
+  border: 0;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #7f9ad2, #5b79ba);
+}
+
 button,
 input {
   font: inherit;
@@ -265,6 +290,10 @@ input {
   opacity: 0.9;
 }
 
+.status-uri-standalone {
+  margin-right: 2px;
+}
+
 .status-ok {
   color: var(--success);
 }
@@ -307,6 +336,11 @@ input {
   background: transparent;
   color: var(--text-main);
   -webkit-app-region: no-drag;
+}
+
+.theme-switch-active {
+  background: rgba(251, 113, 133, 0.16);
+  color: var(--danger);
 }
 
 .status-window-actions {
@@ -512,29 +546,103 @@ input {
 
 .settings-root,
 .history-root {
-  padding: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.settings-subtitle {
+  margin: -2px 0 0;
+  font-size: 12px;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.settings-title {
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-tab-btn {
+  min-width: 0;
+  min-height: 38px;
+  border-radius: 11px;
+  border: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--panel-bg) 86%, #ffffff 14%);
+  color: var(--text-soft);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 140ms ease;
+}
+
+.settings-tab-btn:hover {
+  color: var(--text-main);
+  transform: translateY(-1px);
+}
+
+.settings-tab-btn-active {
+  color: #052633;
+  border-color: transparent;
+  background: linear-gradient(90deg, #34d399, #22d3ee);
+  box-shadow: 0 8px 18px rgba(18, 190, 174, 0.28);
 }
 
 .panel-card {
-  background: var(--panel-bg);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel-bg) 92%, white 8%), var(--panel-bg));
   border: 1px solid var(--panel-border);
   border-radius: 18px;
-  padding: 12px;
+  padding: 13px;
+  box-shadow: 0 8px 18px rgba(20, 40, 80, 0.08);
+}
+
+.panel-card-highlight {
+  background: linear-gradient(180deg, color-mix(in srgb, #8ed7ff 14%, var(--panel-bg)), var(--panel-bg));
+}
+
+.panel-card-subtle {
+  background: color-mix(in srgb, var(--panel-bg) 96%, #ffffff 4%);
+  box-shadow: none;
 }
 
 .panel-title {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   color: var(--text-main);
   font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.01em;
 }
 
 .meta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.settings-meta-grid {
+  min-width: 0;
+}
+
+.meta-tile {
+  border: 1px solid color-mix(in srgb, var(--panel-border) 82%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--input-bg) 84%, transparent);
+  padding: 10px;
+  min-width: 0;
 }
 
 .meta-label {
@@ -594,26 +702,34 @@ input {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+  min-width: 0;
 }
 
 .field-label {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-size: 12px;
   color: var(--text-main);
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.field-label-row {
+  justify-content: space-between;
 }
 
 .field-input {
   width: 100%;
-  padding: 9px 10px;
+  padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--input-border);
-  background: var(--input-bg);
+  background: color-mix(in srgb, var(--input-bg) 88%, #ffffff 12%);
   color: var(--input-text);
   outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+  min-width: 0;
 }
 
 .field-input::placeholder {
@@ -622,7 +738,8 @@ input {
 
 .field-input:focus {
   border-color: #53b6ff;
-  box-shadow: 0 0 0 2px rgba(83, 182, 255, 0.22);
+  background: color-mix(in srgb, var(--input-bg) 74%, #ffffff 26%);
+  box-shadow: 0 0 0 2px rgba(83, 182, 255, 0.2);
 }
 
 .field-range {
@@ -679,9 +796,31 @@ input {
 
 .advanced-content {
   margin-top: 10px;
-  padding-top: 6px;
+  padding-top: 8px;
   border-top: 1px dashed var(--panel-border);
   animation: pop-in 180ms ease;
+}
+
+.inline-actions .secondary-btn {
+  min-height: 44px;
+}
+
+.toggle-checkbox {
+  width: 17px;
+  height: 17px;
+  accent-color: #22c7dd;
+  cursor: pointer;
+}
+
+@media (max-width: 365px) {
+  .settings-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .meta-grid,
+  .field-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .danger-btn {
@@ -763,6 +902,10 @@ input {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
   padding: 12px 12px 6px;
   gap: 12px;
 }
@@ -779,18 +922,46 @@ input {
   position: relative;
 }
 
+.dial-display-wrap-focused .dial-display-input {
+  border-color: #53b6ff;
+  box-shadow: 0 0 0 2px rgba(83, 182, 255, 0.2), 0 8px 20px rgba(38, 110, 180, 0.12);
+}
+
+.dial-focus-chip {
+  position: absolute;
+  left: 14px;
+  top: 7px;
+  z-index: 4;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  opacity: 0.7;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.dial-focus-chip-on {
+  opacity: 1;
+  color: #2b8be1;
+}
+
 .dial-display-input {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 92px;
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: 18px;
-  color: transparent;
-  caret-color: var(--input-text);
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  caret-color: transparent;
   text-align: center;
   padding: 8px 56px 8px 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 28px;
+  font-size: 1px;
   outline: none;
 }
 
@@ -802,12 +973,15 @@ input {
 .dial-display-overlay {
   position: absolute;
   inset: 0;
+  z-index: 2;
   pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: clamp(0px, 0.08vw, 1px);
-  padding: 0 56px 0 14px;
+  padding: var(--display-top-padding, 14px) 56px 0 14px;
+  transform: translateY(var(--display-offset-y, 0px));
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
   white-space: nowrap;
   font-size: var(--display-font-size, 48px);
@@ -864,6 +1038,7 @@ input {
   position: absolute;
   top: 50%;
   right: 10px;
+  z-index: 3;
   transform: translateY(-50%);
   width: 34px;
   height: 34px;
@@ -1284,6 +1459,11 @@ input {
   display: grid;
   place-items: center;
   color: #fff;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .incoming-decline {

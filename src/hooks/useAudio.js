@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
 export const useAudio = (options = {}) => {
@@ -163,10 +163,10 @@ export const useAudio = (options = {}) => {
         toast.error('Nenhum microfone disponivel neste dispositivo.');
       } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
         setMicPermission(null);
-        toast.error('Microfone ocupado por outro aplicativo.');
+        toast.error('Microphone is busy in another application.');
       } else {
         setMicPermission(null);
-        toast.error(`Falha ao abrir microfone: ${errorName || 'erro desconhecido'}`);
+        toast.error(`Failed to open microphone: ${errorName || 'unknown error'}`);
       }
       throw error;
     }
@@ -199,7 +199,7 @@ export const useAudio = (options = {}) => {
     if (isElectron && window.electronAPI?.sip?.setAudioInputDevice) {
       const result = await window.electronAPI.sip.setAudioInputDevice(deviceId || 'default');
       if (!result?.success) {
-        throw new Error(result?.error || 'Falha ao selecionar entrada de audio no engine');
+        throw new Error(result?.error || 'Failed to select audio input in engine');
       }
       // In native UDP mode, the media path is handled by sip-agent. Browser capture is optional.
       return;
@@ -355,3 +355,4 @@ export const useAudio = (options = {}) => {
     selectDevice: selectInputDevice,
   };
 };
+

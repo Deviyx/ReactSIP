@@ -1,7 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 import { Phone, PhoneIncoming, PhoneOff, Clock } from 'lucide-react';
 import { useSIPContext } from '../context/SIPContext';
 import { useSIP } from '../hooks/useSIP';
+
+const UNKNOWN_NUMBER = 'Unknown number';
 
 const CallHistory = () => {
   const { callHistory } = useSIPContext();
@@ -23,43 +25,58 @@ const CallHistory = () => {
 
   const getCallNumber = (call) => {
     const raw = [call?.number, call?.displayName].find((v) => v && String(v).trim());
-    if (!raw) return 'Número não identificado';
+    if (!raw) return UNKNOWN_NUMBER;
     const normalized = normalizeLabel(raw);
-    if (normalized.toLowerCase() === 'unknown') return 'Número não identificado';
-    if (!normalized) return 'Número não identificado';
+    if (normalized.toLowerCase() === 'unknown') return UNKNOWN_NUMBER;
+    if (!normalized) return UNKNOWN_NUMBER;
     return normalized;
+  };
+
+  const getHistoryIconMeta = (call) => {
+    if (call.direction === 'incoming') {
+      return {
+        icon: <PhoneIncoming size={16} />,
+        title: call.status === 'completed' ? 'Answered incoming call' : 'Missed incoming call',
+      };
+    }
+    if (call.status === 'completed') {
+      return { icon: <Phone size={16} />, title: 'Completed outgoing call' };
+    }
+    return { icon: <PhoneOff size={16} />, title: 'Failed or ended call' };
   };
 
   if (callHistory.length === 0) {
     return (
       <div className="surface-card page-center">
         <Clock size={40} className="empty-icon" />
-        <p className="empty-title">Sem histórico de chamadas</p>
+        <p className="empty-title">No call history</p>
       </div>
     );
   }
 
   return (
     <div className="surface-card page-scroll history-root">
-      <h2 className="section-title">Histórico</h2>
-
+      <h2 className="section-title">History</h2>
       <div className="list-stack">
         {[...callHistory].reverse().map((call, index) => {
           const callNumber = getCallNumber(call);
-          const canRecall = callNumber !== 'Número não identificado';
+          const canRecall = callNumber !== UNKNOWN_NUMBER;
+          const iconMeta = getHistoryIconMeta(call);
 
           return (
             <div key={`${call.timestamp}-${index}`} className="history-item">
               <div className="history-left">
-                <div className={`history-icon ${call.direction === 'incoming' ? 'history-in' : 'history-out'}`}>
-                  {call.direction === 'incoming' ? <PhoneIncoming size={16} /> : call.status === 'completed' ? <Phone size={16} /> : <PhoneOff size={16} />}
+                <div className={`history-icon ${call.direction === 'incoming' ? 'history-in' : 'history-out'}`} title={iconMeta.title}>
+                  {iconMeta.icon}
                 </div>
                 <div className="history-meta">
                   <div className="history-number">{callNumber}</div>
                   <div className="history-sub">{formatDateTime(call.timestamp)}{call.status === 'completed' ? ` - ${formatDuration(call.duration)}` : ''}</div>
                 </div>
               </div>
-              <button type="button" onClick={() => makeCall(callNumber)} className="mini-call-btn" disabled={!canRecall}>Ligar</button>
+              <button type="button" onClick={() => makeCall(callNumber)} className="mini-call-btn" disabled={!canRecall} title={canRecall ? `Call ${callNumber}` : 'Number unavailable for redial'}>
+                Call
+              </button>
             </div>
           );
         })}

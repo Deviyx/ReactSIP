@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { Mic, PauseCircle, PhoneOff, UserRound, Volume2 } from 'lucide-react';
 import { useSIPContext } from '../context/SIPContext';
 import { useSIP } from '../hooks/useSIP';
@@ -17,10 +17,7 @@ const ActiveCall = () => {
   const pressTimerRef = useRef(null);
 
   const activeCall = [...calls].reverse().find((call) => call && !['ended', 'failed'].includes(call.status));
-
-  if (!activeCall) {
-    return null;
-  }
+  if (!activeCall) return null;
 
   const timer = useCallTimer(activeCall.startTime);
 
@@ -70,7 +67,7 @@ const ActiveCall = () => {
       <div className="active-meter">
         <div className="meter-head">
           <Volume2 size={12} />
-          Sinal
+          Signal
         </div>
         <div className="meter-track">
           <div className="meter-fill" style={{ width: `${meter}%` }} />
@@ -78,17 +75,17 @@ const ActiveCall = () => {
       </div>
 
       <div className="active-actions-row">
-        <button type="button" className={`state-btn ${isMuted ? 'state-btn-on' : ''}`} onClick={muteCall}>
+        <button type="button" className={`state-btn ${isMuted ? 'state-btn-on' : ''}`} onClick={muteCall} title={isMuted ? 'Unmute microphone' : 'Mute microphone'}>
           <Mic size={16} />
-          {isMuted ? 'Mutado' : 'Mudo'}
+          {isMuted ? 'Muted' : 'Mute'}
         </button>
-        <button type="button" className={`state-btn ${isOnHold ? 'state-btn-on' : ''}`} onClick={holdCall}>
+        <button type="button" className={`state-btn ${isOnHold ? 'state-btn-on' : ''}`} onClick={holdCall} title={isOnHold ? 'Resume call' : 'Put on hold'}>
           <PauseCircle size={16} />
-          {isOnHold ? 'Retomar' : 'Espera'}
+          {isOnHold ? 'Resume' : 'Hold'}
         </button>
-        <button type="button" className={`state-btn ${transferOpen ? 'state-btn-on' : ''}`} onClick={() => setTransferOpen((prev) => !prev)}>
+        <button type="button" className={`state-btn ${transferOpen ? 'state-btn-on' : ''}`} onClick={() => setTransferOpen((prev) => !prev)} title="Transfer call">
           <UserRound size={16} />
-          Transferir
+          Transfer
         </button>
       </div>
 
@@ -100,14 +97,14 @@ const ActiveCall = () => {
             onChange={(e) => setTransferTarget(e.target.value)}
             onKeyDown={onTransferKeyDown}
             className="field-input"
-            placeholder="Número SIP para transferência"
+            placeholder="SIP number for transfer"
           />
           <div className="transfer-actions">
             <button type="button" className="secondary-btn" onClick={() => setTransferOpen(false)}>
-              Cancelar
+              Cancel
             </button>
             <button type="button" className="primary-btn" onClick={onTransfer}>
-              Confirmar
+              Confirm
             </button>
           </div>
         </div>
@@ -120,15 +117,16 @@ const ActiveCall = () => {
             type="button"
             className={`dtmf-btn ${pressedTone === tone ? 'dtmf-btn-pressed' : ''}`}
             onClick={() => onDTMF(tone)}
+            title={`Send DTMF ${tone}`}
           >
             {tone}
           </button>
         ))}
       </div>
 
-      <button type="button" className="danger-btn hangup-btn" onClick={() => hangupCall(activeCall.id)}>
+      <button type="button" className="danger-btn hangup-btn" onClick={() => hangupCall(activeCall.id)} title="End call">
         <PhoneOff size={16} />
-        Desligar
+        Hang up
       </button>
     </div>
   );

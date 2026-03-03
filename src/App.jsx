@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Phone, Settings as SettingsIcon, Clock, Bug } from 'lucide-react';
 import { useSIPContext } from './context/SIPContext';
@@ -49,16 +49,16 @@ function App() {
       if (!status?.state) return;
 
       if (status.state === 'available') {
-        toast.success(status.message || 'Atualizacao encontrada');
+        toast.success(status.message || 'Update found');
       } else if (status.state === 'downloading') {
         const percent = Math.max(0, Math.min(100, Math.round(status.percent || 0)));
-        toast(`Atualizando... ${percent}%`, { id: 'update-progress', duration: 1200 });
+        toast(`Updating... ${percent}%`, { id: 'update-progress', duration: 1200 });
       } else if (status.state === 'downloaded') {
         toast.dismiss('update-progress');
-        toast.success('Atualizacao pronta. O app vai reiniciar para aplicar.', { duration: 4500 });
+        toast.success('Update ready. The app will restart to apply it.', { duration: 4500 });
       } else if (status.state === 'error') {
         toast.dismiss('update-progress');
-        toast.error(status.message || 'Falha ao atualizar');
+        toast.error(status.message || 'Update failed');
       } else if (status.state === 'not-available') {
         toast.dismiss('update-progress');
       }
@@ -68,9 +68,9 @@ function App() {
   }, []);
 
   const tabs = [
-    { id: 'dialpad', icon: Phone, label: 'Ligar' },
-    { id: 'history', icon: Clock, label: 'Histórico' },
-    { id: 'settings', icon: SettingsIcon, label: 'Config' },
+    { id: 'dialpad', icon: Phone, label: 'Dial' },
+    { id: 'history', icon: Clock, label: 'History' },
+    { id: 'settings', icon: SettingsIcon, label: 'Settings' },
     ...(showDebugTab ? [{ id: 'debug', icon: Bug, label: 'Debug' }] : []),
   ];
 
@@ -118,6 +118,7 @@ function App() {
                       type="button"
                       onClick={() => setActiveTab(id)}
                       className={`tab-pill ${activeTab === id ? 'tab-pill-active' : ''}`}
+                      title={label}
                     >
                       <Icon size={16} className="tab-icon" />
                       <span>{label}</span>
@@ -138,7 +139,7 @@ function App() {
           {micPermission === false && !showActiveCall && (
             <div className="mic-warning">
               <span className="warning-dot" />
-              Microfone necessário para chamadas
+              Microphone required for calls
             </div>
           )}
         </div>

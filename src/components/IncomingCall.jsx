@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Phone, PhoneOff } from 'lucide-react';
 import { useSIPContext } from '../context/SIPContext';
 import { useSIP } from '../hooks/useSIP';
@@ -7,9 +7,7 @@ const IncomingCall = () => {
   const { incomingCallData } = useSIPContext();
   const { answerCall, rejectCall } = useSIP();
 
-  if (!incomingCallData) {
-    return null;
-  }
+  if (!incomingCallData) return null;
 
   return (
     <div className="incoming-overlay">
@@ -18,7 +16,7 @@ const IncomingCall = () => {
           <Phone size={42} />
         </div>
 
-        <p className="incoming-label">Chamada recebida</p>
+        <p className="incoming-label">Incoming call</p>
         <h2 className="incoming-name">{incomingCallData.displayName}</h2>
         <p className="incoming-number">{incomingCallData.number}</p>
 
@@ -33,18 +31,22 @@ const IncomingCall = () => {
             type="button"
             onClick={() => rejectCall(incomingCallData.id)}
             className="incoming-btn incoming-decline"
-            aria-label="Recusar chamada"
+            aria-label="Ignore call"
+            title="Ignore call"
           >
             <PhoneOff size={26} />
+            <span>Ignore</span>
           </button>
 
           <button
             type="button"
             onClick={() => answerCall(incomingCallData.id)}
             className="incoming-btn incoming-accept"
-            aria-label="Aceitar chamada"
+            aria-label="Answer call"
+            title="Answer call"
           >
             <Phone size={26} />
+            <span>Answer</span>
           </button>
         </div>
       </div>
