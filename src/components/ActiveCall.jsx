@@ -31,6 +31,13 @@ const ActiveCall = () => {
     setTransferTarget('');
   };
 
+  const onTransferKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      onTransfer();
+    }
+  };
+
   const onDTMF = (tone) => {
     if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
     setPressedTone(tone);
@@ -91,6 +98,7 @@ const ActiveCall = () => {
             type="text"
             value={transferTarget}
             onChange={(e) => setTransferTarget(e.target.value)}
+            onKeyDown={onTransferKeyDown}
             className="field-input"
             placeholder="Número SIP para transferência"
           />

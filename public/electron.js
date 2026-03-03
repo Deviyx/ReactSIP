@@ -1309,15 +1309,18 @@ function createWindow() {
   }
 
   mainWindow = new BrowserWindow({
-    width: 420,
-    height: 820,
-    minWidth: 380,
-    minHeight: 680,
+    width: 360,
+    height: 700,
+    minWidth: 340,
+    minHeight: 620,
     resizable: true,
-    maximizable: false,
+    maximizable: true,
     fullscreenable: false,
     autoHideMenuBar: true,
     title: 'ReactSIP',
+    frame: false,
+    titleBarStyle: 'hidden',
+    backgroundColor: '#0f172a',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -1366,6 +1369,9 @@ function createWindow() {
     }
     app.quit();
   });
+
+  mainWindow.on('maximize', () => emitRenderer('app:window-state', { maximized: true }));
+  mainWindow.on('unmaximize', () => emitRenderer('app:window-state', { maximized: false }));
 }
 
 // ============ App Events ============
@@ -1717,4 +1723,26 @@ ipcMain.handle('app:install-update-now', async () => {
   } catch (error) {
     return { success: false, error: error.message };
   }
+});
+
+ipcMain.handle('app:window-minimize', async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { success: false };
+  mainWindow.minimize();
+  return { success: true };
+});
+
+ipcMain.handle('app:window-toggle-maximize', async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { success: false };
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow.maximize();
+  }
+  return { success: true, maximized: mainWindow.isMaximized() };
+});
+
+ipcMain.handle('app:window-close', async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { success: false };
+  mainWindow.close();
+  return { success: true };
 });

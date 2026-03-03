@@ -104,11 +104,11 @@ input {
 
 .app-root {
   position: relative;
-  min-height: 100vh;
+  height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 8px;
 }
 
 .bg-orb {
@@ -147,38 +147,24 @@ input {
 }
 
 .phone-chassis {
-  width: min(392px, 100%);
-  height: min(760px, calc(100vh - 14px));
-  border-radius: 34px;
-  padding: 10px;
-  border: 1px solid var(--shell-border);
-  background: linear-gradient(170deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.08));
-  box-shadow: var(--shell-shadow);
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   position: relative;
   overflow: hidden;
 }
 
 .phone-chassis::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  pointer-events: none;
-}
-
-.phone-notch {
-  width: 130px;
-  height: 18px;
-  border-radius: 0 0 14px 14px;
-  background: rgba(5, 8, 18, 0.86);
-  border: 1px solid rgba(124, 140, 188, 0.2);
-  margin: 0 auto 8px;
+  display: none;
 }
 
 .phone-screen {
-  border-radius: 26px;
-  height: calc(100% - 26px);
+  border-radius: 12px;
+  height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -192,7 +178,11 @@ input {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px;
+  padding: 10px 10px 4px;
+}
+
+.phone-content-call {
+  overflow-y: auto;
 }
 
 .status-bar {
@@ -200,9 +190,10 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(136, 154, 203, 0.26);
-  background: linear-gradient(90deg, rgba(52, 211, 153, 0.24), rgba(56, 189, 248, 0.09));
+  padding: 8px 10px;
+  border-bottom: none;
+  background: transparent;
+  -webkit-app-region: drag;
 }
 
 .status-left,
@@ -211,14 +202,6 @@ input {
   align-items: center;
   gap: 8px;
   min-width: 0;
-}
-
-.brand-logo {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  border-radius: 5px;
-  box-shadow: 0 4px 10px rgba(8, 24, 48, 0.22);
 }
 
 .status-identity {
@@ -306,14 +289,42 @@ input {
 }
 
 .theme-switch {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
-  border: 1px solid var(--panel-border);
-  background: var(--panel-bg);
+  border-radius: 8px;
+  border: none;
+  background: transparent;
   color: var(--text-main);
+  -webkit-app-region: no-drag;
+}
+
+.status-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.status-window-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-main);
+  display: grid;
+  place-items: center;
+}
+
+.status-window-btn:hover {
+  background: var(--action-bg-hover);
+}
+
+.status-window-btn-close:hover {
+  background: rgba(244, 63, 94, 0.18);
+  color: var(--danger);
 }
 
 .tab-row {
@@ -663,8 +674,8 @@ input {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 12px;
-  gap: 10px;
+  padding: 12px 12px 6px;
+  gap: 12px;
 }
 
 .dial-header {
@@ -788,7 +799,7 @@ input {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .dial-key {
@@ -834,7 +845,8 @@ input {
 .dial-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
+  margin-top: 0;
 }
 
 .dial-action-btn {
@@ -865,7 +877,8 @@ input {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  height: 100%;
+  min-height: 100%;
+  overflow-y: auto;
 }
 
 .active-avatar-wrap {
@@ -988,7 +1001,11 @@ input {
 }
 
 .hangup-btn {
-  margin-top: auto;
+  margin-top: 2px;
+  min-height: 52px;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
 }
 
 .transfer-panel {
@@ -1292,11 +1309,43 @@ input {
 }
 
 @media (max-height: 760px) {
-  .phone-chassis {
-    height: calc(100vh - 10px);
+  .dial-key-digit {
+    font-size: 30px;
+  }
+
+  .active-actions-row {
+    gap: 6px;
+  }
+
+  .state-btn {
+    min-height: 52px;
+    font-size: 10px;
+  }
+
+  .dtmf-btn {
+    min-height: 36px;
+  }
+
+  .hangup-btn {
+    min-height: 48px;
+  }
+}
+
+@media (max-height: 690px) {
+  .phone-content {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .dial-display-input {
+    height: 78px;
   }
 
   .dial-key-digit {
-    font-size: 30px;
+    font-size: 27px;
+  }
+
+  .active-name {
+    font-size: 22px;
   }
 }

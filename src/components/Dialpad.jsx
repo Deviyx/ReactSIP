@@ -52,6 +52,13 @@ const Dialpad = () => {
     makeCall(target);
   };
 
+  const onDisplayKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      onCall();
+    }
+  };
+
   const displayFontSize = useMemo(() => {
     if (!number) return MAX_FONT;
 
@@ -75,6 +82,7 @@ const Dialpad = () => {
           type="text"
           value={number}
           onChange={(e) => setNumber(e.target.value)}
+          onKeyDown={onDisplayKeyDown}
           className="dial-display-input"
           placeholder=""
           aria-label="Número para ligar"

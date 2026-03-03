@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openMicrophonePrivacySettings: () => ipcRenderer.invoke('app:open-microphone-privacy-settings'),
     checkForUpdates: () => ipcRenderer.invoke('app:check-for-updates'),
     installUpdateNow: () => ipcRenderer.invoke('app:install-update-now'),
+    minimizeWindow: () => ipcRenderer.invoke('app:window-minimize'),
+    toggleMaximizeWindow: () => ipcRenderer.invoke('app:window-toggle-maximize'),
+    closeWindow: () => ipcRenderer.invoke('app:window-close'),
   },
 
   // SIP operations
@@ -70,6 +73,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('app:update-status', (event, payload) => callback(payload));
   },
 
+  onWindowState: (callback) => {
+    ipcRenderer.on('app:window-state', (event, payload) => callback(payload));
+  },
+
   // Cleanup listeners
   removeAllListeners: () => {
     ipcRenderer.removeAllListeners('sip:connection-status');
@@ -82,5 +89,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('sip:engine-error');
     ipcRenderer.removeAllListeners('sip:event');
     ipcRenderer.removeAllListeners('app:update-status');
+    ipcRenderer.removeAllListeners('app:window-state');
   },
 });

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Moon, Sun, Wifi } from 'lucide-react';
+import { Minus, Moon, Square, Sun, Wifi, X } from 'lucide-react';
 import { useSIPContext } from '../context/SIPContext';
-import reactSipLogo from '../assets/reactsip-logo.svg';
 
 const StatusBar = ({ theme, onToggleTheme }) => {
   const { settings, connectionStatus, registrationStatus, sipUri } = useSIPContext();
+  const [isMaximized, setIsMaximized] = React.useState(false);
 
   const isRegistered = registrationStatus === 'Registered';
   const isConnected = connectionStatus === 'Connected';
@@ -17,10 +17,21 @@ const StatusBar = ({ theme, onToggleTheme }) => {
       ? 'status-warn'
       : 'status-off';
 
+  React.useEffect(() => {
+    if (!window.electronAPI?.onWindowState) return undefined;
+    window.electronAPI.onWindowState((state) => {
+      setIsMaximized(Boolean(state?.maximized));
+    });
+    return undefined;
+  }, []);
+
+  const minimize = () => window.electronAPI?.app?.minimizeWindow?.();
+  const maximize = () => window.electronAPI?.app?.toggleMaximizeWindow?.();
+  const close = () => window.electronAPI?.app?.closeWindow?.();
+
   return (
     <header className="status-bar">
       <div className="status-left">
-        <img src={reactSipLogo} alt="ReactSIP" className="brand-logo" />
         <span className={`status-dot ${dotClass}`} />
         <Wifi size={14} className={`status-icon ${dotClass}`} />
         <div>
@@ -37,6 +48,22 @@ const StatusBar = ({ theme, onToggleTheme }) => {
         <button className="theme-switch" type="button" onClick={onToggleTheme} aria-label="Alternar tema">
           {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
         </button>
+        <div className="status-window-actions">
+          <button type="button" className="status-window-btn" onClick={minimize} aria-label="Minimizar">
+            <Minus size={12} />
+          </button>
+          <button
+            type="button"
+            className="status-window-btn"
+            onClick={maximize}
+            aria-label={isMaximized ? 'Restaurar' : 'Maximizar'}
+          >
+            <Square size={10} />
+          </button>
+          <button type="button" className="status-window-btn status-window-btn-close" onClick={close} aria-label="Fechar">
+            <X size={12} />
+          </button>
+        </div>
       </div>
     </header>
   );

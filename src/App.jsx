@@ -96,14 +96,13 @@ function App() {
       <IncomingCall />
 
       <div className="phone-chassis">
-        <div className="phone-notch" />
         <div className="phone-screen">
           <StatusBar
             theme={theme}
             onToggleTheme={() => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))}
           />
 
-          <div className="phone-content">
+          <div className={`phone-content ${showActiveCall ? 'phone-content-call' : ''}`}>
             {showActiveCall ? (
               <ActiveCall />
             ) : (
