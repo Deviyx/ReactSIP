@@ -40,9 +40,18 @@ jobs:
           }
 
       - name: Publish release assets to GitHub
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win nsis portable --publish always
+        run: npx electron-builder --win nsis portable --publish never
+
+      - name: Publish assets to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/latest*.yml
+          fail_on_unmatched_files: false
+          generate_release_notes: true
 
       - name: Upload local artifacts (workflow artifacts)
         if: always()
