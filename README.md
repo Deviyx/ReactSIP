@@ -1,17 +1,29 @@
 # ReactSIP Desktop
 
-ReactSIP is a compact SIP softphone desktop app built with React + Electron.
+> ⚠️ **Proof of Concept** — This is an ambitious study project. It is fully functional, but not designed for production use.
 
-Current focus:
-- SIP registration/calls
-- Native UDP audio engine on Windows (sidecar `sip-agent.exe`)
-- Audio devices/volume controls
-- Clean compact UI
-- GitHub Releases + auto-update support
+ReactSIP is a compact SIP desktop softphone built with React + Electron as a deep-dive study project on VoIP communication, Electron desktop architecture, and native audio engine integration. The goal is not to compete with commercial solutions, but to explore and truly understand every layer of the stack — from the SIP protocol and RTP all the way through the native C process up to the React UI.
+
+Despite being a PoC, **all core features are implemented and working**: SIP registration, voice calls, audio control, DTMF, transfer, call history, and more.
+
+---
+
+## Why does this project exist?
+
+This repo was born out of a desire to genuinely understand how a modern softphone works — without relying on third-party SDKs that hide the complexity. Every technical decision here was made with learning in mind:
+
+- How does the SIP protocol actually work in practice (REGISTER, INVITE, BYE, re-INVITE)?
+- How do you integrate a native C process as an Electron sidecar?
+- How do you manage reactive call state with Zustand?
+- How do you package and distribute an Electron app with auto-update via GitHub Releases?
+
+---
 
 ## Status
 
-This is an early version. Core features are working, but behavior and UI may still change.
+Functional proof of concept. Core features are working, but the codebase is still evolving — behavior and UI may change at any time.
+
+---
 
 ## Main Features
 
@@ -21,18 +33,23 @@ This is an early version. Core features are working, but behavior and UI may sti
 - Call history
 - Audio input/output device selection
 - Input/output volume sliders
-- Native SIP/RTP media path for UDP on Windows
+- Native SIP/RTP media path via UDP on Windows (sidecar `sip-agent.exe`)
 - Installer + portable builds
 - Auto-update from GitHub Releases (installer build)
 
+---
+
 ## Tech Stack
 
-- React 18
-- Vite 5
-- Electron 24
-- Zustand
-- `electron-builder`
-- `electron-updater`
+| Layer | Technology |
+|-------|------------|
+| UI | React 18 + Vite 5 |
+| Desktop shell | Electron 24 |
+| State | Zustand |
+| Build/distribution | electron-builder + electron-updater |
+| Native audio engine | PJSIP (C) via `sip-agent.exe` sidecar |
+
+---
 
 ## Requirements
 
@@ -41,6 +58,8 @@ This is an early version. Core features are working, but behavior and UI may sti
 - npm
 - SIP server credentials (host/domain, user, password)
 
+---
+
 ## Run Locally
 
 ```bash
@@ -48,46 +67,56 @@ npm install
 npm run electron-dev
 ```
 
+---
+
 ## Build
 
 ```bash
 npm run electron-build
 ```
 
-Output folder:
-- `release/`
+Output in `release/`:
 
-Main artifacts:
-- `ReactSIP Setup <version>.exe` (installer)
-- `ReactSIP <version>.exe` (portable)
-- `latest.yml` (used by auto-update)
+- `ReactSIP Setup <version>.exe` — installer
+- `ReactSIP <version>.exe` — portable
+- `latest.yml` — used by auto-update
+
+---
 
 ## Native SIP Agent (UDP media)
 
-The app uses a native sidecar:
-- `native/sip-agent/bin/sip-agent.exe`
+One of the most interesting aspects of this PoC is the integration with a native C sidecar based on PJSIP, responsible for the actual media path (SIP + RTP) on Windows. This allows bypassing Electron's limitations when dealing with low-latency UDP.
 
-Build scripts:
-- `npm run native:setup:pjsip`
-- `npm run native:build:pjproject`
-- `npm run native:build:pjsip`
-- `npm run native:sync-agent`
+**Binary location:** `native/sip-agent/bin/sip-agent.exe`
 
-If you already have `sip-agent.exe` in `native/sip-agent/bin/`, `electron-build` will package it.
+**Build scripts:**
+
+```bash
+npm run native:setup:pjsip
+npm run native:build:pjproject
+npm run native:build:pjsip
+npm run native:sync-agent
+```
+
+If you already have `sip-agent.exe` in `native/sip-agent/bin/`, `electron-build` will package it automatically.
+
+---
 
 ## Auto-Update (GitHub Releases)
 
 Configured via:
-- `electron-builder.json` (`publish` provider GitHub)
+- `electron-builder.json` (GitHub provider)
 - `public/electron.js` (`electron-updater`)
 
 Notes:
 - Auto-update is intended for the installer (`NSIS`) distribution.
 - Portable build usually does not auto-update.
 
+---
+
 ## Release Flow (Recommended)
 
-1. Update app version in `package.json`.
+1. Update the version in `package.json`.
 2. Commit and push to `main`.
 3. Create and push a tag:
 
@@ -96,47 +125,51 @@ git tag v0.0.3
 git push origin v0.0.3
 ```
 
-4. GitHub Actions workflow (`.github/workflows/release.yml`) builds and publishes assets to the Release.
+4. The GitHub Actions workflow (`.github/workflows/release.yml`) builds and publishes assets to the Release automatically.
+
+---
 
 ## Configuration
 
-Basic account fields in Settings:
+**Basic account fields (Settings):**
 - Display Name
 - Username
 - Password
 - Domain/IP
 
-Advanced:
+**Advanced:**
 - Transport (`udp`, `ws`, `wss`)
 - Local SIP port
 - RTP range
 - STUN (optional)
 - Show/Hide Debug tab
 
+---
+
 ## Troubleshooting
 
 ### White screen after install
-
-- Ensure build uses relative assets (`vite.config.js` with `base: './'`).
-- Rebuild and reinstall latest executable.
+- Ensure the build uses relative assets (`vite.config.js` with `base: './'`).
+- Rebuild and reinstall the latest executable.
 
 ### `Cannot find module 'electron-updater'`
-
 - Ensure `electron-updater` is in `dependencies` (not only `devDependencies`).
-- Rebuild installer and reinstall.
-- App now has safe fallback if updater module is unavailable.
+- Rebuild the installer and reinstall.
+- The app has a safe fallback if the updater module is unavailable.
 
 ### Workflow fails on `npm ci`
-
 - Sync `package-lock.json` with `package.json`:
-  - run `npm install`
-  - commit both files
+  ```bash
+  npm install
+  # commit both files
+  ```
 
 ### No audio in call
-
-- Confirm native engine is being used (UDP mode on Windows).
+- Confirm the native engine is being used (UDP mode on Windows).
 - Check microphone permission and selected devices.
-- Validate SIP/PBX RTP configuration and firewall.
+- Validate your SIP/PBX RTP configuration and firewall rules.
+
+---
 
 ## Project Structure
 
@@ -158,10 +191,18 @@ microsip-react-client/
   package.json
 ```
 
+---
+
 ## Security Note
 
-Current dev builds may show Electron CSP warnings. Tighten CSP and Electron security settings before production hardening.
+Dev builds may show Electron CSP warnings. Tighten CSP and Electron security settings before any production hardening.
+
+---
 
 ## License
 
 Project license not finalized yet.
+
+---
+
+*ReactSIP is a study project — technical contributions, issues, and discussions are welcome.*
