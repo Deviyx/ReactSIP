@@ -1,52 +1,132 @@
-﻿import React from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Phone, PhoneOff } from 'lucide-react';
 import { useSIPContext } from '../context/SIPContext';
 import { useSIP } from '../hooks/useSIP';
 
 const IncomingCall = () => {
   const { incomingCallData } = useSIPContext();
-  const { answerCall, rejectCall } = useSIP();
+  const { answerCall, hangupCall } = useSIP();
+  const [ignoredCallId, setIgnoredCallId] = useState(null);
+  const audioContextRef = useRef(null);
+  const ringIntervalRef = useRef(null);
+
+  const stopRingtone = useCallback(() => {
+    if (ringIntervalRef.current) {
+      clearInterval(ringIntervalRef.current);
+      ringIntervalRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+  }, []);
+
+  const startRingtone = useCallback(async () => {
+    if (audioContextRef.current) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+
+    const ctx = new Ctx();
+    audioContextRef.current = ctx;
+    await ctx.resume().catch(() => {});
+
+    const playBurst = () => {
+      const now = ctx.currentTime;
+      [440, 554].forEach((freq) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(0.06, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      });
+    };
+
+    playBurst();
+    ringIntervalRef.current = setInterval(playBurst, 1600);
+  }, []);
+
+  useEffect(() => {
+    if (!incomingCallData) {
+      stopRingtone();
+      setIgnoredCallId(null);
+      return;
+    }
+
+    if (ignoredCallId === incomingCallData.id) {
+      stopRingtone();
+      return;
+    }
+
+    startRingtone().catch(() => {});
+  }, [ignoredCallId, incomingCallData, startRingtone, stopRingtone]);
+
+  useEffect(() => () => stopRingtone(), [stopRingtone]);
 
   if (!incomingCallData) return null;
+  if (ignoredCallId === incomingCallData.id) return null;
+
+  const callerLabel = incomingCallData.number || incomingCallData.displayName || 'Unknown';
 
   return (
-    <div className="incoming-overlay">
-      <div className="incoming-card">
-        <div className="incoming-avatar">
-          <Phone size={42} />
+    <div className="incoming-toast-wrap">
+      <div className="incoming-toast">
+        <div className="incoming-toast-head">
+          <div className="incoming-toast-id">
+            <Phone size={14} />
+            <span>Incoming call</span>
+          </div>
+          <span className="incoming-toast-pulse" aria-hidden="true" />
         </div>
 
-        <p className="incoming-label">Incoming call</p>
-        <h2 className="incoming-name">{incomingCallData.displayName}</h2>
-        <p className="incoming-number">{incomingCallData.number}</p>
+        <div className="incoming-toast-number" title={callerLabel}>{callerLabel}</div>
 
-        <div className="incoming-bars" aria-hidden="true">
-          {[0, 1, 2].map((i) => (
-            <span key={i} style={{ animationDelay: `${i * 0.2}s` }} />
-          ))}
-        </div>
-
-        <div className="incoming-actions">
+        <div className="incoming-toast-actions">
           <button
             type="button"
-            onClick={() => rejectCall(incomingCallData.id)}
-            className="incoming-btn incoming-decline"
-            aria-label="Ignore call"
-            title="Ignore call"
+            onClick={async () => {
+              stopRingtone();
+              await answerCall(incomingCallData.id);
+            }}
+            className="incoming-toast-btn incoming-toast-answer"
+            aria-label="Answer call"
+            title="Answer call"
           >
-            <PhoneOff size={26} />
-            <span>Ignore</span>
+            <Phone size={14} />
+            <span>Answer</span>
           </button>
 
           <button
             type="button"
-            onClick={() => answerCall(incomingCallData.id)}
-            className="incoming-btn incoming-accept"
-            aria-label="Answer call"
-            title="Answer call"
+            onClick={async () => {
+              stopRingtone();
+              await hangupCall(incomingCallData.id);
+            }}
+            className="incoming-toast-btn incoming-toast-hangup"
+            aria-label="Hang up call"
+            title="Hang up call"
           >
-            <Phone size={26} />
-            <span>Answer</span>
+            <PhoneOff size={14} />
+            <span>Hang up</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              stopRingtone();
+              setIgnoredCallId(incomingCallData.id);
+            }}
+            className="incoming-toast-btn incoming-toast-ignore"
+            aria-label="Ignore call"
+            title="Ignore call"
+          >
+            <PhoneOff size={14} />
+            <span>Ignore</span>
           </button>
         </div>
       </div>
