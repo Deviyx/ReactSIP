@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const readline = require('readline');
+const { autoUpdater } = require('electron-updater');
 const DEV_SERVER_URL = process.env.ELECTRON_RENDERER_URL || process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
 
 // Detectar se está em desenvolvimento
@@ -16,8 +17,10 @@ let sipClient = null;
 let nativeSipBridge = null;
 let currentSettings = null;
 let preferNativeEngine = process.env.SIP_ENGINE === 'native';
+let updateCheckTimer = null;
 
 const ENGINE_READY_TIMEOUT_MS = 6000;
+const UPDATE_CHECK_INTERVAL_MS = 1000 * 60 * 60 * 4;
 
 function configureMediaPermissions() {
   const ses = session.defaultSession;
@@ -46,6 +49,79 @@ function emitRenderer(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, payload);
   }
+}
+
+function emitUpdateStatus(payload) {
+  emitRenderer('app:update-status', payload);
+}
+
+function checkForUpdatesInBackground() {
+  if (isDev || !app.isPackaged) return;
+  autoUpdater.checkForUpdates().catch((error) => {
+    console.warn('[updater] check failed:', error.message);
+    emitUpdateStatus({
+      state: 'error',
+      message: `Falha ao verificar atualizacoes: ${error.message}`,
+    });
+  });
+}
+
+function setupAutoUpdater() {
+  if (isDev || !app.isPackaged) {
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = null;
+
+  autoUpdater.on('checking-for-update', () => {
+    emitUpdateStatus({ state: 'checking', message: 'Verificando atualizacoes...' });
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    emitUpdateStatus({
+      state: 'available',
+      version: info?.version,
+      message: `Atualizacao ${info?.version || ''} encontrada. Baixando...`.trim(),
+    });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    emitUpdateStatus({ state: 'not-available', message: 'Aplicativo ja esta atualizado.' });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    emitUpdateStatus({
+      state: 'downloading',
+      percent: Number(progress?.percent || 0),
+      bytesPerSecond: Number(progress?.bytesPerSecond || 0),
+      transferred: Number(progress?.transferred || 0),
+      total: Number(progress?.total || 0),
+      message: 'Baixando atualizacao...',
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    emitUpdateStatus({
+      state: 'downloaded',
+      version: info?.version,
+      message: `Atualizacao ${info?.version || ''} pronta para instalar.`.trim(),
+    });
+  });
+
+  autoUpdater.on('error', (error) => {
+    emitUpdateStatus({
+      state: 'error',
+      message: `Erro no updater: ${error?.message || 'desconhecido'}`,
+    });
+  });
+
+  setTimeout(checkForUpdatesInBackground, 6000);
+  if (updateCheckTimer) {
+    clearInterval(updateCheckTimer);
+  }
+  updateCheckTimer = setInterval(checkForUpdatesInBackground, UPDATE_CHECK_INTERVAL_MS);
 }
 
 class NativeSipBridge {
@@ -1236,7 +1312,7 @@ function createWindow() {
     maximizable: false,
     fullscreenable: false,
     autoHideMenuBar: true,
-    title: 'MicroSIP Phone',
+    title: 'ReactSIP',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -1291,6 +1367,14 @@ function createWindow() {
 app.on('ready', () => {
   configureMediaPermissions();
   createWindow();
+  setupAutoUpdater();
+});
+
+app.on('before-quit', () => {
+  if (updateCheckTimer) {
+    clearInterval(updateCheckTimer);
+    updateCheckTimer = null;
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -1585,6 +1669,40 @@ ipcMain.handle('app:open-microphone-privacy-settings', async () => {
       return { success: true };
     }
     return { success: false, error: 'Plataforma sem atalho automatico para privacidade de microfone' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('app:check-for-updates', async () => {
+  try {
+    if (isDev || !app.isPackaged) {
+      return { success: false, error: 'Updater disponivel apenas no app instalado' };
+    }
+
+    const result = await autoUpdater.checkForUpdates();
+    const hasUpdate = Boolean(result?.updateInfo?.version);
+    return {
+      success: true,
+      checking: true,
+      hasUpdate,
+      version: result?.updateInfo?.version || null,
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('app:install-update-now', async () => {
+  try {
+    if (isDev || !app.isPackaged) {
+      return { success: false, error: 'Updater disponivel apenas no app instalado' };
+    }
+
+    setImmediate(() => {
+      autoUpdater.quitAndInstall(false, true);
+    });
+    return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }

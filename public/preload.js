@@ -4,6 +4,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   app: {
     openMicrophonePrivacySettings: () => ipcRenderer.invoke('app:open-microphone-privacy-settings'),
+    checkForUpdates: () => ipcRenderer.invoke('app:check-for-updates'),
+    installUpdateNow: () => ipcRenderer.invoke('app:install-update-now'),
   },
 
   // SIP operations
@@ -64,6 +66,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('sip:engine-error', (event, payload) => callback(payload));
   },
 
+  onUpdateStatus: (callback) => {
+    ipcRenderer.on('app:update-status', (event, payload) => callback(payload));
+  },
+
   // Cleanup listeners
   removeAllListeners: () => {
     ipcRenderer.removeAllListeners('sip:connection-status');
@@ -75,5 +81,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('sip:audio-level');
     ipcRenderer.removeAllListeners('sip:engine-error');
     ipcRenderer.removeAllListeners('sip:event');
+    ipcRenderer.removeAllListeners('app:update-status');
   },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { Phone, Settings as SettingsIcon, Clock, Bug } from 'lucide-react';
 import { useSIPContext } from './context/SIPContext';
 import { useAudio } from './hooks/useAudio';
@@ -37,6 +37,31 @@ function App() {
       setActiveTab('dialpad');
     }
   }, [activeTab, showDebugTab]);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onUpdateStatus) return undefined;
+
+    window.electronAPI.onUpdateStatus((status) => {
+      if (!status?.state) return;
+
+      if (status.state === 'available') {
+        toast.success(status.message || 'Atualizacao encontrada');
+      } else if (status.state === 'downloading') {
+        const percent = Math.max(0, Math.min(100, Math.round(status.percent || 0)));
+        toast(`Atualizando... ${percent}%`, { id: 'update-progress', duration: 1200 });
+      } else if (status.state === 'downloaded') {
+        toast.dismiss('update-progress');
+        toast.success('Atualizacao pronta. Reinicie o app para instalar.', { duration: 4500 });
+      } else if (status.state === 'error') {
+        toast.dismiss('update-progress');
+        toast.error(status.message || 'Falha ao atualizar');
+      } else if (status.state === 'not-available') {
+        toast.dismiss('update-progress');
+      }
+    });
+
+    return undefined;
+  }, []);
 
   const tabs = [
     { id: 'dialpad', icon: Phone, label: 'Ligar' },

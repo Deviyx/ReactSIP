@@ -1,6 +1,6 @@
 {
-  "appId": "com.microsip.desktop",
-  "productName": "MicroSIP Desktop",
+  "appId": "com.reactsip.desktop",
+  "productName": "ReactSIP",
   "directories": {
     "buildResources": "public",
     "output": "release"
@@ -23,6 +23,14 @@
   "win": {
     "target": ["nsis", "portable"]
   },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "Deviyx",
+      "repo": "ReactSIP",
+      "releaseType": "release"
+    }
+  ],
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true

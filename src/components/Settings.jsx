@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Settings as SettingsIcon, Copy, Check, Info, Mic, Speaker, Volume2, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useSIPContext } from '../context/SIPContext';
 import { useSIP } from '../hooks/useSIP';
 import { useAudio } from '../hooks/useAudio';
@@ -30,6 +31,7 @@ const Settings = () => {
   const [copiedSipUri, setCopiedSipUri] = useState(false);
   const [engineStatus, setEngineStatus] = useState('desconhecido');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   useEffect(() => {
     if (settings.audio_input_volume != null) {
@@ -93,6 +95,25 @@ const Settings = () => {
     navigator.clipboard.writeText(sipUri);
     setCopiedSipUri(true);
     setTimeout(() => setCopiedSipUri(false), 1200);
+  };
+
+  const checkUpdates = async () => {
+    if (!window.electronAPI?.app?.checkForUpdates) {
+      toast.error('Updater indisponível neste ambiente');
+      return;
+    }
+
+    setCheckingUpdate(true);
+    try {
+      const result = await window.electronAPI.app.checkForUpdates();
+      if (!result?.success) {
+        toast.error(result?.error || 'Falha ao verificar atualizações');
+      } else {
+        toast.success('Verificação de atualização iniciada');
+      }
+    } finally {
+      setCheckingUpdate(false);
+    }
   };
 
   return (
@@ -308,6 +329,13 @@ const Settings = () => {
                       </button>
                     </div>
                   </div>
+                </div>
+
+                <div className="panel-card" style={{ marginTop: 8 }}>
+                  <h3 className="panel-title">Atualizações</h3>
+                  <button type="button" className="secondary-btn" onClick={checkUpdates} disabled={checkingUpdate}>
+                    {checkingUpdate ? 'Verificando...' : 'Verificar atualizações'}
+                  </button>
                 </div>
               </>
             )}
