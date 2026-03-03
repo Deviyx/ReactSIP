@@ -213,6 +213,14 @@ input {
   min-width: 0;
 }
 
+.brand-logo {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  box-shadow: 0 4px 10px rgba(8, 24, 48, 0.22);
+}
+
 .status-identity {
   display: flex;
   flex-direction: column;

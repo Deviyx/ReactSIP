@@ -1,7 +1,7 @@
 {
   "name": "reactsip-desktop",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "ReactSIP desktop client built with React + Electron + native SIP UDP media engine.",
   "author": "ReactSIP Team",
   "main": "public/electron.js",
@@ -24,6 +24,7 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.1",
     "autoprefixer": "^10.4.27",
+    "electron-updater": "^6.3.9",
     "jssip": "^3.13.5",
     "lucide-react": "^0.575.0",
     "postcss": "^8.5.6",
@@ -40,7 +41,6 @@
     "concurrently": "^8.2.2",
     "electron": "^24.0.0",
     "electron-builder": "^24.9.1",
-    "electron-updater": "^6.3.9",
     "eslint": "^8.55.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",

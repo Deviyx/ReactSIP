@@ -9,7 +9,8 @@
     "renderer-dist/**/*",
     "public/electron.js",
     "public/preload.js",
-    "package.json"
+    "package.json",
+    "node_modules/**/*"
   ],
   "extraResources": [
     {

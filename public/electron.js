@@ -6,7 +6,12 @@ const crypto = require('crypto');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const readline = require('readline');
-const { autoUpdater } = require('electron-updater');
+let autoUpdater = null;
+try {
+  ({ autoUpdater } = require('electron-updater'));
+} catch (error) {
+  console.warn('[updater] electron-updater not available, updater disabled:', error.message);
+}
 const DEV_SERVER_URL = process.env.ELECTRON_RENDERER_URL || process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
 
 // Detectar se está em desenvolvimento
@@ -56,7 +61,7 @@ function emitUpdateStatus(payload) {
 }
 
 function checkForUpdatesInBackground() {
-  if (isDev || !app.isPackaged) return;
+  if (isDev || !app.isPackaged || !autoUpdater) return;
   autoUpdater.checkForUpdates().catch((error) => {
     console.warn('[updater] check failed:', error.message);
     emitUpdateStatus({
@@ -67,7 +72,7 @@ function checkForUpdatesInBackground() {
 }
 
 function setupAutoUpdater() {
-  if (isDev || !app.isPackaged) {
+  if (isDev || !app.isPackaged || !autoUpdater) {
     return;
   }
 
@@ -1679,6 +1684,9 @@ ipcMain.handle('app:check-for-updates', async () => {
     if (isDev || !app.isPackaged) {
       return { success: false, error: 'Updater disponivel apenas no app instalado' };
     }
+    if (!autoUpdater) {
+      return { success: false, error: 'Modulo electron-updater indisponivel nesta instalacao' };
+    }
 
     const result = await autoUpdater.checkForUpdates();
     const hasUpdate = Boolean(result?.updateInfo?.version);
@@ -1697,6 +1705,9 @@ ipcMain.handle('app:install-update-now', async () => {
   try {
     if (isDev || !app.isPackaged) {
       return { success: false, error: 'Updater disponivel apenas no app instalado' };
+    }
+    if (!autoUpdater) {
+      return { success: false, error: 'Modulo electron-updater indisponivel nesta instalacao' };
     }
 
     setImmediate(() => {

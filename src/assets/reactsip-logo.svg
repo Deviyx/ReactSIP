@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ReactSIP logo">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="#0f172a"/>
+  <path d="M20 44V20h12c6 0 10 3.3 10 9 0 4.8-3 8-7.5 8.8L44 44h-8.2l-8.4-13h-0.6v13H20zm6.8-17.7h4.3c2.8 0 4.4 1.1 4.4 3.1 0 2-1.6 3.2-4.3 3.2h-4.4v-6.3z" fill="url(#g1)"/>
+  <circle cx="50" cy="14" r="4.5" fill="#22d3ee"/>
+</svg>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Moon, Sun, Wifi } from 'lucide-react';
 import { useSIPContext } from '../context/SIPContext';
+import reactSipLogo from '../assets/reactsip-logo.svg';
 
 const StatusBar = ({ theme, onToggleTheme }) => {
   const { settings, connectionStatus, registrationStatus, sipUri } = useSIPContext();
@@ -19,6 +20,7 @@ const StatusBar = ({ theme, onToggleTheme }) => {
   return (
     <header className="status-bar">
       <div className="status-left">
+        <img src={reactSipLogo} alt="ReactSIP" className="brand-logo" />
         <span className={`status-dot ${dotClass}`} />
         <Wifi size={14} className={`status-icon ${dotClass}`} />
         <div>
