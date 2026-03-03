@@ -39,6 +39,10 @@ function App() {
   }, [activeTab, showDebugTab]);
 
   useEffect(() => {
+    window.electronAPI?.app?.setHyperCompactMode?.(Boolean(settings?.hyper_compact_mode));
+  }, [settings?.hyper_compact_mode]);
+
+  useEffect(() => {
     if (!window.electronAPI?.onUpdateStatus) return undefined;
 
     window.electronAPI.onUpdateStatus((status) => {
@@ -51,7 +55,7 @@ function App() {
         toast(`Atualizando... ${percent}%`, { id: 'update-progress', duration: 1200 });
       } else if (status.state === 'downloaded') {
         toast.dismiss('update-progress');
-        toast.success('Atualizacao pronta. Reinicie o app para instalar.', { duration: 4500 });
+        toast.success('Atualizacao pronta. O app vai reiniciar para aplicar.', { duration: 4500 });
       } else if (status.state === 'error') {
         toast.dismiss('update-progress');
         toast.error(status.message || 'Falha ao atualizar');
@@ -71,7 +75,7 @@ function App() {
   ];
 
   return (
-    <div className="app-root">
+    <div className={`app-root ${settings?.hyper_compact_mode ? 'hyper-compact' : ''}`}>
       <div className="bg-orb orb-a" />
       <div className="bg-orb orb-b" />
       <div className="bg-orb orb-c" />

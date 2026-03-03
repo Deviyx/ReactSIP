@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     minimizeWindow: () => ipcRenderer.invoke('app:window-minimize'),
     toggleMaximizeWindow: () => ipcRenderer.invoke('app:window-toggle-maximize'),
     closeWindow: () => ipcRenderer.invoke('app:window-close'),
+    setHyperCompactMode: (enabled) => ipcRenderer.invoke('app:set-hyper-compact-mode', !!enabled),
   },
 
   // SIP operations

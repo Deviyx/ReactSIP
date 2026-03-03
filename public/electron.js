@@ -26,6 +26,8 @@ let updateCheckTimer = null;
 
 const ENGINE_READY_TIMEOUT_MS = 6000;
 const UPDATE_CHECK_INTERVAL_MS = 1000 * 60 * 60 * 4;
+const WINDOW_NORMAL = { width: 360, height: 700, minWidth: 340, minHeight: 620 };
+const WINDOW_COMPACT = { width: 320, height: 600, minWidth: 300, minHeight: 520 };
 
 function configureMediaPermissions() {
   const ses = session.defaultSession;
@@ -111,8 +113,20 @@ function setupAutoUpdater() {
     emitUpdateStatus({
       state: 'downloaded',
       version: info?.version,
-      message: `Atualizacao ${info?.version || ''} pronta para instalar.`.trim(),
+      message: `Atualizacao ${info?.version || ''} pronta. Reiniciando para aplicar...`.trim(),
     });
+
+    // Match native desktop behavior: apply update immediately after download.
+    setTimeout(() => {
+      try {
+        autoUpdater.quitAndInstall(false, true);
+      } catch (error) {
+        emitUpdateStatus({
+          state: 'error',
+          message: `Falha ao reiniciar para atualizar: ${error?.message || 'desconhecido'}`,
+        });
+      }
+    }, 1500);
   });
 
   autoUpdater.on('error', (error) => {
@@ -1309,10 +1323,10 @@ function createWindow() {
   }
 
   mainWindow = new BrowserWindow({
-    width: 360,
-    height: 700,
-    minWidth: 340,
-    minHeight: 620,
+    width: WINDOW_NORMAL.width,
+    height: WINDOW_NORMAL.height,
+    minWidth: WINDOW_NORMAL.minWidth,
+    minHeight: WINDOW_NORMAL.minHeight,
     resizable: true,
     maximizable: true,
     fullscreenable: false,
@@ -1745,4 +1759,18 @@ ipcMain.handle('app:window-close', async () => {
   if (!mainWindow || mainWindow.isDestroyed()) return { success: false };
   mainWindow.close();
   return { success: true };
+});
+
+ipcMain.handle('app:set-hyper-compact-mode', async (_event, enabled) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { success: false };
+
+  const mode = enabled ? WINDOW_COMPACT : WINDOW_NORMAL;
+  mainWindow.setMinimumSize(mode.minWidth, mode.minHeight);
+
+  const [currentWidth, currentHeight] = mainWindow.getSize();
+  const nextWidth = Math.min(currentWidth, mode.width);
+  const nextHeight = Math.min(currentHeight, mode.height);
+  mainWindow.setSize(Math.max(nextWidth, mode.minWidth), Math.max(nextHeight, mode.minHeight), true);
+
+  return { success: true, compact: !!enabled };
 });

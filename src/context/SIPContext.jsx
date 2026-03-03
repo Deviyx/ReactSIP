@@ -25,6 +25,7 @@ export const useSIPContext = create(
         audio_input_volume: 100,
         audio_output_volume: 100,
         show_debug_tab: false,
+        hyper_compact_mode: false,
       },
       connectionStatus: 'Disconnected',
       registrationStatus: 'Unregistered',
@@ -67,6 +68,7 @@ export const useSIPContext = create(
       settings: {
         ...persistedState?.settings,
         show_debug_tab: Boolean(persistedState?.settings?.show_debug_tab),
+        hyper_compact_mode: Boolean(persistedState?.settings?.hyper_compact_mode),
       },
       session: null,
       incomingCallData: null,

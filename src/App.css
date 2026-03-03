@@ -204,6 +204,15 @@ input {
   min-width: 0;
 }
 
+.status-left {
+  flex: 1;
+}
+
+.status-right {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .status-identity {
   display: flex;
   flex-direction: column;
@@ -246,7 +255,7 @@ input {
 
 .status-uri {
   margin: 0;
-  max-width: 148px;
+  max-width: 92px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -325,6 +334,86 @@ input {
 .status-window-btn-close:hover {
   background: rgba(244, 63, 94, 0.18);
   color: var(--danger);
+}
+
+.app-root.hyper-compact {
+  padding: 4px;
+}
+
+.hyper-compact .phone-chassis {
+  border-radius: 10px;
+  padding: 2px;
+}
+
+.hyper-compact .phone-screen {
+  border-radius: 10px;
+}
+
+.hyper-compact .status-bar {
+  padding: 6px 8px;
+}
+
+.hyper-compact .status-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.hyper-compact .status-value,
+.hyper-compact .status-user {
+  font-size: 12px;
+}
+
+.hyper-compact .status-uri {
+  display: none;
+}
+
+.hyper-compact .phone-content {
+  gap: 6px;
+  padding: 6px 6px 2px;
+}
+
+.hyper-compact .tab-row {
+  padding: 4px;
+  gap: 6px;
+}
+
+.hyper-compact .tab-pill {
+  min-height: 44px;
+  font-size: 10px;
+}
+
+.hyper-compact .dialpad-root {
+  padding: 8px 8px 4px;
+  gap: 8px;
+}
+
+.hyper-compact .dial-display-input {
+  height: 72px;
+}
+
+.hyper-compact .dial-key-digit {
+  font-size: 28px;
+}
+
+.hyper-compact .dial-grid,
+.hyper-compact .dial-actions {
+  gap: 8px;
+}
+
+@media (max-width: 360px) {
+  .status-uri {
+    display: none;
+  }
+
+  .status-window-actions {
+    gap: 2px;
+  }
+
+  .status-window-btn,
+  .theme-switch {
+    width: 22px;
+    height: 22px;
+  }
 }
 
 .tab-row {

@@ -116,6 +116,15 @@ const Settings = () => {
     }
   };
 
+  const handleCompactModeToggle = async (enabled) => {
+    setSettings({ hyper_compact_mode: enabled });
+    try {
+      await window.electronAPI?.app?.setHyperCompactMode?.(enabled);
+    } catch {
+      // Keep UI preference even when running outside Electron main bridge.
+    }
+  };
+
   return (
     <div className="surface-card page-scroll settings-root">
       <div className="section-title-row">
@@ -260,6 +269,17 @@ const Settings = () => {
                   type="checkbox"
                   checked={Boolean(settings.show_debug_tab)}
                   onChange={(e) => setSettings({ show_debug_tab: e.target.checked })}
+                />
+              </label>
+            </div>
+
+            <div className="field-group">
+              <label className="field-label" style={{ justifyContent: 'space-between' }}>
+                Modo hiper compacto
+                <input
+                  type="checkbox"
+                  checked={Boolean(settings.hyper_compact_mode)}
+                  onChange={(e) => handleCompactModeToggle(e.target.checked)}
                 />
               </label>
             </div>
