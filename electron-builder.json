@@ -33,7 +33,11 @@
     }
   ],
   "nsis": {
+    "artifactName": "ReactSIP-Setup-${version}.${ext}",
     "oneClick": false,
     "allowToChangeInstallationDirectory": true
+  },
+  "portable": {
+    "artifactName": "ReactSIP-Portable-${version}.${ext}"
   }
 }
