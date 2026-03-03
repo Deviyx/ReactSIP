@@ -836,20 +836,20 @@ input {
 
 .history-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border-radius: 16px;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  border-radius: 18px;
   border: 1px solid var(--panel-border);
-  background: var(--panel-bg);
+  background: color-mix(in srgb, var(--panel-bg) 95%, #ffffff 5%);
   padding: 10px;
+  box-shadow: 0 4px 10px rgba(20, 40, 80, 0.06);
 }
 
 .history-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: block;
   min-width: 0;
+  flex: 1;
 }
 
 .history-icon {
@@ -872,9 +872,103 @@ input {
 
 .history-meta {
   min-width: 0;
+  flex: 1;
 }
 
 .history-number {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  color: var(--text-main);
+  font-weight: 800;
+  font-size: 35px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.history-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.history-type-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.history-chip-incoming {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.28);
+  color: #2563eb;
+}
+
+.history-chip-missed,
+.history-chip-failed {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.24);
+  color: #e11d48;
+}
+
+.history-chip-outgoing {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.28);
+  color: #0f9f73;
+}
+
+.history-facts {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-radius: 10px;
+  border: none;
+  background: color-mix(in srgb, var(--input-bg) 96%, #ffffff 4%);
+  overflow: hidden;
+}
+
+.history-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  min-width: 0;
+}
+
+.history-fact:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--panel-border) 55%, #ffffff 45%);
+}
+
+.history-sub-label {
+  font-size: 9px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.history-sub-value {
+  font-size: 12px;
   color: var(--text-main);
   font-weight: 800;
   white-space: nowrap;
@@ -882,20 +976,56 @@ input {
   text-overflow: ellipsis;
 }
 
-.history-sub {
-  color: var(--text-soft);
-  font-size: 11px;
-  margin-top: 2px;
-}
-
 .mini-call-btn {
+  width: 100%;
+  min-height: 40px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--success) 45%, transparent);
-  background: var(--history-btn-bg);
-  color: var(--history-btn-text);
-  padding: 8px 12px;
-  font-size: 12px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--history-btn-bg) 65%, #34d399 35%),
+    color-mix(in srgb, var(--history-btn-bg) 55%, #22d3ee 45%)
+  );
+  color: color-mix(in srgb, var(--history-btn-text) 80%, #05242e 20%);
+  padding: 9px 12px;
+  font-size: 13px;
   font-weight: 800;
+  letter-spacing: 0.01em;
+  align-self: stretch;
+  transition: transform 130ms ease, filter 130ms ease;
+}
+
+.mini-call-btn:hover {
+  filter: brightness(1.03);
+  transform: translateY(-1px);
+}
+
+.history-actions {
+  display: flex;
+  justify-content: stretch;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed color-mix(in srgb, var(--panel-border) 70%, transparent);
+}
+
+@media (max-width: 390px) {
+  .history-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mini-call-btn {
+    align-self: flex-end;
+  }
+
+  .history-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .history-fact:not(:last-child) {
+    border-right: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--input-border) 60%, transparent);
+  }
 }
 
 .dialpad-root {
