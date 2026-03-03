@@ -1,0 +1,30 @@
+{
+  "appId": "com.microsip.desktop",
+  "productName": "MicroSIP Desktop",
+  "directories": {
+    "buildResources": "public",
+    "output": "release"
+  },
+  "files": [
+    "renderer-dist/**/*",
+    "public/electron.js",
+    "public/preload.js",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "native/sip-agent/bin",
+      "to": "native",
+      "filter": [
+        "sip-agent.exe"
+      ]
+    }
+  ],
+  "win": {
+    "target": ["nsis", "portable"]
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}

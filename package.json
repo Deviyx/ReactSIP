@@ -1,0 +1,50 @@
+{
+  "name": "microsip-react-client",
+  "private": true,
+  "version": "0.0.0",
+  "description": "MicroSIP Desktop client built with React + Electron + native SIP UDP media engine.",
+  "author": "MicroSIP Desktop Team",
+  "main": "public/electron.js",
+  "homepage": "./",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "native:setup:pjsip": "powershell -ExecutionPolicy Bypass -File scripts/setup-pjsip.ps1",
+    "native:build:pjproject": "powershell -ExecutionPolicy Bypass -File scripts/build-pjproject-libs.ps1",
+    "native:configure": "cmake -S native/sip-agent -B native/sip-agent/build -G \"Visual Studio 17 2022\" -A x64",
+    "native:build": "cmake --build native/sip-agent/build --config Release",
+    "native:build:pjsip": "powershell -ExecutionPolicy Bypass -File scripts/build-native-sip-agent.ps1",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "native:sync-agent": "powershell -ExecutionPolicy Bypass -File scripts/sync-native-agent.ps1",
+    "electron-build": "npm run build && npm run native:sync-agent && electron-builder",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
+    "autoprefixer": "^10.4.27",
+    "jssip": "^3.13.5",
+    "lucide-react": "^0.575.0",
+    "postcss": "^8.5.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.6.0",
+    "tailwindcss": "^4.2.1",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^24.0.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "vite": "^5.0.8",
+    "wait-on": "^7.2.0"
+  }
+}
