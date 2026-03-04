@@ -60,6 +60,7 @@ def transcribe_chunk(payload: Dict[str, Any]) -> Dict[str, Any]:
     speaker = payload.get("speaker", "unknown")
     audio_b64 = payload.get("audioBase64", "")
     mime_type = payload.get("mimeType", "audio/webm")
+    use_vad = bool(payload.get("use_vad", False))
 
     if not audio_b64:
         return {"speaker": speaker, "text": "", "skipped": True}
@@ -68,30 +69,30 @@ def transcribe_chunk(payload: Dict[str, Any]) -> Dict[str, Any]:
     suffix = ".webm" if "webm" in mime_type else ".wav"
     tmp_path = None
     try:
-      with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-          tmp.write(raw)
-          tmp_path = tmp.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(raw)
+            tmp_path = tmp.name
 
-      segments, info = model.transcribe(
-          tmp_path,
-          language=language,
-          vad_filter=True,
-          beam_size=1,
-          temperature=0.0,
-      )
-      text = " ".join((seg.text or "").strip() for seg in segments).strip()
-      return {
-          "speaker": speaker,
-          "text": text,
-          "language": getattr(info, "language", None),
-          "probability": getattr(info, "language_probability", None),
-      }
+        segments, info = model.transcribe(
+            tmp_path,
+            language=language,
+            vad_filter=use_vad,
+            beam_size=1,
+            temperature=0.0,
+        )
+        text = " ".join((seg.text or "").strip() for seg in segments).strip()
+        return {
+            "speaker": speaker,
+            "text": text,
+            "language": getattr(info, "language", None),
+            "probability": getattr(info, "language_probability", None),
+        }
     finally:
-      if tmp_path and os.path.exists(tmp_path):
-          try:
-              os.remove(tmp_path)
-          except Exception:
-              pass
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
 
 
 def main() -> None:
