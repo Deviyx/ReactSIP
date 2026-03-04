@@ -881,7 +881,7 @@ input {
   display: block;
   color: var(--text-main);
   font-weight: 800;
-  font-size: 35px;
+  font-size: 32px;
   line-height: 1;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -889,10 +889,22 @@ input {
   text-overflow: ellipsis;
 }
 
+.history-number-sm {
+  font-size: 27px;
+}
+
+.history-number-xs {
+  font-size: 22px;
+}
+
+.history-number-xxs {
+  font-size: 19px;
+}
+
 .history-top-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
 }
 
@@ -915,6 +927,12 @@ input {
   text-transform: uppercase;
   border: 1px solid transparent;
   flex-shrink: 0;
+}
+
+.history-status-row {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .history-chip-incoming {

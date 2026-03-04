@@ -62,6 +62,14 @@ const CallHistory = () => {
       : { label: 'Failed', className: 'history-chip-failed' };
   };
 
+  const getNumberSizeClass = (number) => {
+    const len = String(number || '').length;
+    if (len >= 16) return 'history-number-xxs';
+    if (len >= 13) return 'history-number-xs';
+    if (len >= 10) return 'history-number-sm';
+    return '';
+  };
+
   if (callHistory.length === 0) {
     return (
       <div className="surface-card page-center">
@@ -82,6 +90,7 @@ const CallHistory = () => {
           const callType = getCallTypeMeta(call);
           const dateTime = formatDateTime(call.timestamp);
           const durationLabel = call.status === 'completed' ? formatDuration(call.duration) : '--';
+          const numberSizeClass = getNumberSizeClass(callNumber);
 
           return (
             <div key={`${call.timestamp}-${index}`} className="history-item">
@@ -92,8 +101,10 @@ const CallHistory = () => {
                       <div className={`history-icon ${call.direction === 'incoming' ? 'history-in' : 'history-out'}`} title={iconMeta.title}>
                         {iconMeta.icon}
                       </div>
-                      <div className="history-number" title={callNumber}>{callNumber}</div>
+                      <div className={`history-number ${numberSizeClass}`} title={callNumber}>{callNumber}</div>
                     </div>
+                  </div>
+                  <div className="history-status-row">
                     <span className={`history-type-chip ${callType.className}`}>{callType.label}</span>
                   </div>
                   <div className="history-facts">

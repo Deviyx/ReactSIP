@@ -75,6 +75,7 @@ native/sip-agent/build-pjsip/
 *.obj
 *.pdb
 *.tlog
+RELEASE_UPLOAD_PLAYBOOK.local.md
 release/
 renderer-dist/
 dist/
