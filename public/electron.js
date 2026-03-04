@@ -35,7 +35,7 @@ const WHISPER_RUNTIME_ASSET = process.env.WHISPER_RUNTIME_ASSET || 'whisper-runt
 const WHISPER_RUNTIME_URL = process.env.WHISPER_RUNTIME_URL || `https://github.com/Deviyx/ReactSIP/releases/latest/download/${WHISPER_RUNTIME_ASSET}`;
 const WHISPER_RUNTIME_REPO = process.env.WHISPER_RUNTIME_REPO || 'Deviyx/ReactSIP';
 const WHISPER_RUNTIME_DIRNAME = 'whisper-runtime';
-const WHISPER_RUNTIME_SCHEMA_VERSION = process.env.WHISPER_RUNTIME_SCHEMA_VERSION || '2';
+const WHISPER_RUNTIME_SCHEMA_VERSION = process.env.WHISPER_RUNTIME_SCHEMA_VERSION || '3';
 
 function configureMediaPermissions() {
   const ses = session.defaultSession;

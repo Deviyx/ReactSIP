@@ -20,6 +20,29 @@ session_started = False
 language = None
 
 
+def normalize_ws(text: str) -> str:
+    return " ".join((text or "").strip().split())
+
+
+def is_hallucination_loop(text: str) -> bool:
+    words = normalize_ws(text).lower().split(" ")
+    words = [w for w in words if w]
+    if len(words) < 10:
+        return False
+
+    # Very common loop pattern: same 1-2 words repeated too many times.
+    unique = set(words)
+    if len(unique) <= 2 and len(words) >= 10:
+        return True
+
+    # Repeated trigram pattern over the whole sentence.
+    trigrams = [" ".join(words[i:i + 3]) for i in range(0, max(0, len(words) - 2))]
+    if not trigrams:
+        return False
+    top = max(trigrams.count(t) for t in set(trigrams))
+    return top >= max(4, len(trigrams) // 2)
+
+
 def send(obj: Dict[str, Any]) -> None:
     print(json.dumps(obj, ensure_ascii=False), flush=True)
 
@@ -80,8 +103,18 @@ def transcribe_chunk(payload: Dict[str, Any]) -> Dict[str, Any]:
             vad_filter=use_vad,
             beam_size=1,
             temperature=0.0,
+            condition_on_previous_text=False,
+            repetition_penalty=1.2,
+            no_speech_threshold=0.65,
         )
-        text = " ".join((seg.text or "").strip() for seg in segments).strip()
+        text = normalize_ws(" ".join((seg.text or "").strip() for seg in segments))
+        if is_hallucination_loop(text):
+            return {
+                "speaker": speaker,
+                "text": "",
+                "skipped": True,
+                "reason": "hallucination_loop",
+            }
         return {
             "speaker": speaker,
             "text": text,
@@ -138,11 +171,13 @@ def main() -> None:
             if command == "start_session":
                 ensure_model(payload)
                 session_started = True
+                event("session_started", {"started": True})
                 response(request_id, True, {"started": True})
                 continue
 
             if command == "stop_session":
                 session_started = False
+                event("session_stopped", {"stopped": True})
                 response(request_id, True, {"stopped": True})
                 continue
 

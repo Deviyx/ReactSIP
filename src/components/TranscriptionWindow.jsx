@@ -11,6 +11,7 @@ const TranscriptionWindow = () => {
     window.electronAPI.onTranscriptionEvent((event) => {
       if (!event?.type) return;
       if (event.type === 'transcript' && event.payload?.text) {
+        setStatus('Listening');
         setEntries((prev) => {
           const now = Date.now();
           const speaker = String(event.payload.speaker || 'unknown');
@@ -44,6 +45,16 @@ const TranscriptionWindow = () => {
 
       if (event.type === 'error') {
         setStatus(event.payload?.message || 'Transcription error');
+        return;
+      }
+
+      if (event.type === 'session_started') {
+        setStatus('Listening');
+        return;
+      }
+
+      if (event.type === 'session_stopped') {
+        setStatus('Stopped');
         return;
       }
 
