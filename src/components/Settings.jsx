@@ -175,7 +175,7 @@ const Settings = () => {
     }
     setWhisperInstalling(true);
     setWhisperStatus('installing');
-    const result = await window.electronAPI.transcription.ensureRuntime(false);
+    const result = await window.electronAPI.transcription.ensureRuntime(true);
     if (!result?.success) {
       setWhisperInstalling(false);
       setWhisperStatus(`error: ${result?.error || 'unknown'}`);

@@ -35,6 +35,7 @@ const WHISPER_RUNTIME_ASSET = process.env.WHISPER_RUNTIME_ASSET || 'whisper-runt
 const WHISPER_RUNTIME_URL = process.env.WHISPER_RUNTIME_URL || `https://github.com/Deviyx/ReactSIP/releases/latest/download/${WHISPER_RUNTIME_ASSET}`;
 const WHISPER_RUNTIME_REPO = process.env.WHISPER_RUNTIME_REPO || 'Deviyx/ReactSIP';
 const WHISPER_RUNTIME_DIRNAME = 'whisper-runtime';
+const WHISPER_RUNTIME_SCHEMA_VERSION = process.env.WHISPER_RUNTIME_SCHEMA_VERSION || '2';
 
 function configureMediaPermissions() {
   const ses = session.defaultSession;
@@ -86,6 +87,25 @@ function getWhisperRuntimeDir() {
 
 function getWhisperRuntimeWorkerPath() {
   return path.join(getWhisperRuntimeDir(), 'faster-whisper-worker.exe');
+}
+
+function getWhisperRuntimeMarkerPath() {
+  return path.join(getWhisperRuntimeDir(), '.reactsip-runtime-version');
+}
+
+function readWhisperRuntimeMarker() {
+  const markerPath = getWhisperRuntimeMarkerPath();
+  if (!fs.existsSync(markerPath)) return null;
+  try {
+    return String(fs.readFileSync(markerPath, 'utf8') || '').trim();
+  } catch {
+    return null;
+  }
+}
+
+function writeWhisperRuntimeMarker() {
+  const markerPath = getWhisperRuntimeMarkerPath();
+  fs.writeFileSync(markerPath, `${WHISPER_RUNTIME_SCHEMA_VERSION}\n`, 'utf8');
 }
 
 function downloadFile(url, destination, onProgress) {
@@ -207,11 +227,24 @@ function extractZipWindows(zipPath, destDir) {
 
 async function ensureWhisperRuntime(forceDownload = false) {
   const workerPath = getWhisperRuntimeWorkerPath();
-  if (!forceDownload && fs.existsSync(workerPath)) {
+  const runtimeVersion = readWhisperRuntimeMarker();
+  const hasValidMarker = runtimeVersion === WHISPER_RUNTIME_SCHEMA_VERSION;
+  if (!forceDownload && fs.existsSync(workerPath) && hasValidMarker) {
     return { success: true, installed: true, workerPath };
   }
 
+  if (!forceDownload && fs.existsSync(workerPath) && !hasValidMarker) {
+    forceDownload = true;
+  }
+
   const runtimeDir = getWhisperRuntimeDir();
+  if (forceDownload && fs.existsSync(runtimeDir)) {
+    try {
+      fs.rmSync(runtimeDir, { recursive: true, force: true });
+    } catch {
+      // Best-effort cleanup; continue with overwrite flow.
+    }
+  }
   fs.mkdirSync(runtimeDir, { recursive: true });
   const zipPath = path.join(runtimeDir, WHISPER_RUNTIME_ASSET);
 
@@ -232,6 +265,7 @@ async function ensureWhisperRuntime(forceDownload = false) {
   if (!fs.existsSync(workerPath)) {
     throw new Error(`Runtime installed but worker not found: ${workerPath}`);
   }
+  writeWhisperRuntimeMarker();
   emitTranscriptionStatus('runtime_ready', { workerPath });
   return { success: true, installed: true, workerPath };
 }
@@ -2254,6 +2288,14 @@ ipcMain.handle('transcription:start', async (_event, options) => {
 
 ipcMain.handle('transcription:ensure-runtime', async (_event, forceDownload = false) => {
   try {
+    if (forceDownload && transcriptionBridge) {
+      try {
+        transcriptionBridge.stop();
+      } catch {
+        // noop
+      }
+      transcriptionBridge = null;
+    }
     const payload = await ensureWhisperRuntime(!!forceDownload);
     const bridge = ensureTranscriptionBridge();
     bridge.refreshLaunch();
