@@ -31,6 +31,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Clean local output folders
+        shell: pwsh
+        run: |
+          if (Test-Path "release") { Remove-Item -Recurse -Force "release" }
+          if (Test-Path "renderer-dist") { Remove-Item -Recurse -Force "renderer-dist" }
+          if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
+
       - name: Build renderer
         run: npm run build
 
@@ -92,7 +99,7 @@ jobs:
             release/latest*.yml
             release/whisper-runtime-win-x64.zip
           fail_on_unmatched_files: false
-          generate_release_notes: true
+          generate_release_notes: false
 
       - name: Upload local artifacts (workflow artifacts)
         if: always()

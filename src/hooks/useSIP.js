@@ -125,14 +125,6 @@ export const useSIP = () => {
     incomingCallRef.current = incomingCallData;
   }, [incomingCallData]);
 
-  useEffect(() => () => {
-    stopRingback();
-    if (toneContextRef.current) {
-      toneContextRef.current.close().catch(() => {});
-      toneContextRef.current = null;
-    }
-  }, [stopRingback]);
-
   const ensureToneContext = useCallback(async () => {
     if (toneContextRef.current) return toneContextRef.current;
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -196,6 +188,14 @@ export const useSIP = () => {
     osc.start(now);
     osc.stop(now + 0.28);
   }, [ensureToneContext]);
+
+  useEffect(() => () => {
+    stopRingback();
+    if (toneContextRef.current) {
+      toneContextRef.current.close().catch(() => {});
+      toneContextRef.current = null;
+    }
+  }, [stopRingback]);
 
   const attachSessionEvents = useCallback((session, callId, direction) => {
     if (!session || session.__appBound) return;
