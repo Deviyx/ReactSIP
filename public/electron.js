@@ -33,6 +33,7 @@ const WINDOW_NORMAL = { width: 360, height: 700, minWidth: 340, minHeight: 620 }
 const WINDOW_COMPACT = { width: 320, height: 600, minWidth: 300, minHeight: 520 };
 const WHISPER_RUNTIME_ASSET = process.env.WHISPER_RUNTIME_ASSET || 'whisper-runtime-win-x64.zip';
 const WHISPER_RUNTIME_URL = process.env.WHISPER_RUNTIME_URL || `https://github.com/Deviyx/ReactSIP/releases/latest/download/${WHISPER_RUNTIME_ASSET}`;
+const WHISPER_RUNTIME_REPO = process.env.WHISPER_RUNTIME_REPO || 'Deviyx/ReactSIP';
 const WHISPER_RUNTIME_DIRNAME = 'whisper-runtime';
 
 function configureMediaPermissions() {
@@ -126,6 +127,63 @@ function downloadFile(url, destination, onProgress) {
   });
 }
 
+function fetchJson(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, {
+      headers: {
+        'User-Agent': 'ReactSIP-Updater',
+        Accept: 'application/vnd.github+json',
+      },
+    }, (response) => {
+      if (response.statusCode !== 200) {
+        response.resume();
+        reject(new Error(`GitHub API request failed (${response.statusCode})`));
+        return;
+      }
+
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (error) {
+          reject(new Error(`Invalid JSON response from ${url}: ${error.message}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+  });
+}
+
+async function resolveWhisperRuntimeUrl() {
+  if (process.env.WHISPER_RUNTIME_URL) {
+    return process.env.WHISPER_RUNTIME_URL;
+  }
+
+  const [owner, repo] = WHISPER_RUNTIME_REPO.split('/');
+  if (!owner || !repo) return WHISPER_RUNTIME_URL;
+
+  // Fallback: find the newest release (stable or prerelease) that actually has the runtime asset.
+  try {
+    const releases = await fetchJson(`https://api.github.com/repos/${owner}/${repo}/releases?per_page=30`);
+    if (Array.isArray(releases)) {
+      for (const rel of releases) {
+        const assets = Array.isArray(rel.assets) ? rel.assets : [];
+        const asset = assets.find((item) => item && item.name === WHISPER_RUNTIME_ASSET && item.browser_download_url);
+        if (asset) {
+          return asset.browser_download_url;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('[whisper] failed to resolve runtime URL from releases list:', error.message);
+  }
+
+  return WHISPER_RUNTIME_URL;
+}
+
 function extractZipWindows(zipPath, destDir) {
   return new Promise((resolve, reject) => {
     const ps = spawn('powershell', [
@@ -153,13 +211,14 @@ async function ensureWhisperRuntime(forceDownload = false) {
     return { success: true, installed: true, workerPath };
   }
 
-  emitTranscriptionStatus('runtime_installing', { message: 'Installing transcription runtime...' });
   const runtimeDir = getWhisperRuntimeDir();
   fs.mkdirSync(runtimeDir, { recursive: true });
   const zipPath = path.join(runtimeDir, WHISPER_RUNTIME_ASSET);
 
   try {
-    await downloadFile(WHISPER_RUNTIME_URL, zipPath, (progress) => {
+    const runtimeUrl = await resolveWhisperRuntimeUrl();
+    emitTranscriptionStatus('runtime_installing', { message: 'Installing transcription runtime...', url: runtimeUrl });
+    await downloadFile(runtimeUrl, zipPath, (progress) => {
       emitTranscriptionStatus('runtime_download_progress', progress);
     });
     emitTranscriptionStatus('runtime_extracting', { message: 'Extracting transcription runtime...' });
