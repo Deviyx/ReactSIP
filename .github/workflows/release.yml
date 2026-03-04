@@ -106,7 +106,17 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const tag = context.ref.replace('refs/tags/', '');
-            const { data: release } = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+            let release = null;
+            try {
+              const resp = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+              release = resp.data;
+            } catch (error) {
+              if (error.status === 404) {
+                core.info(`No existing release for tag ${tag}; skipping asset cleanup.`);
+                return;
+              }
+              throw error;
+            }
             for (const asset of release.assets || []) {
               core.info(`Deleting old asset: ${asset.name}`);
               await github.rest.repos.deleteReleaseAsset({
