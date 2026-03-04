@@ -64,6 +64,23 @@ jobs:
           Compress-Archive -Path "whisper-runtime/*" -DestinationPath "release/whisper-runtime-win-x64.zip" -Force
           Get-ChildItem "release/whisper-runtime-win-x64.zip" | Format-List FullName, Length
 
+      - name: Clean existing release assets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const tag = context.ref.replace('refs/tags/', '');
+            const { data: release } = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+            for (const asset of release.assets || []) {
+              core.info(`Deleting old asset: ${asset.name}`);
+              await github.rest.repos.deleteReleaseAsset({
+                owner,
+                repo,
+                asset_id: asset.id,
+              });
+            }
+
       - name: Publish assets to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
