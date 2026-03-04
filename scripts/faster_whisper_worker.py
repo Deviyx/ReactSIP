@@ -87,6 +87,18 @@ def transcribe_chunk(payload: Dict[str, Any]) -> Dict[str, Any]:
             "language": getattr(info, "language", None),
             "probability": getattr(info, "language_probability", None),
         }
+    except Exception as exc:
+        # Some MediaRecorder chunks can be malformed/incomplete (common with captureStream/webm).
+        # Do not fail the whole session for a single bad chunk.
+        msg = str(exc).lower()
+        if "invalid data found when processing input" in msg or "no such file" in msg or "silero_vad_v6.onnx" in msg:
+            return {
+                "speaker": speaker,
+                "text": "",
+                "skipped": True,
+                "error": str(exc),
+            }
+        raise
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
