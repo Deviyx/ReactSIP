@@ -1,7 +1,7 @@
 {
   "name": "reactsip-desktop",
   "private": true,
-  "version": "1.0.5-beta-experimental",
+  "version": "1.0.6-beta-experimental",
   "description": "ReactSIP desktop client built with React + Electron + native SIP UDP media engine.",
   "author": "ReactSIP Team",
   "main": "public/electron.js",

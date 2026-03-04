@@ -152,12 +152,12 @@ def transcribe_chunk(payload: Dict[str, Any]) -> Dict[str, Any]:
             tmp_path,
             language=language,
             vad_filter=use_vad,
-            beam_size=3,
-            best_of=3,
+            beam_size=1,
+            best_of=1,
             temperature=0.0,
             condition_on_previous_text=False,
             repetition_penalty=1.2,
-            no_speech_threshold=0.72,
+            no_speech_threshold=0.55,
             log_prob_threshold=-1.0,
         )
         text = normalize_ws(" ".join((seg.text or "").strip() for seg in segments))

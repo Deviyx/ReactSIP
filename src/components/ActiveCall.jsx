@@ -77,26 +77,14 @@ const ActiveCall = () => {
     if (!stream) return null;
     const mimeType = getRecorderMimeType();
     const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-    let initChunk = null;
-    let seenChunks = 0;
+    let flushTimer = null;
     recorder.ondataavailable = async (event) => {
-      if (!event.data || event.data.size < 3000) return;
+      if (!event.data || event.data.size < 1200) return;
       try {
-        let blobToSend = event.data;
-        const isWebm = String(event.data.type || mimeType || '').toLowerCase().includes('webm');
-        if (seenChunks === 0) {
-          initChunk = event.data;
-        } else if (isWebm && initChunk) {
-          // Some browsers emit fragmented WebM chunks after the first one.
-          // Prepend init segment so each chunk is decodable by ffmpeg/whisper.
-          blobToSend = new Blob([initChunk, event.data], { type: event.data.type || mimeType || 'audio/webm' });
-        }
-        seenChunks += 1;
-
-        const buffer = await blobToSend.arrayBuffer();
+        const buffer = await event.data.arrayBuffer();
         await window.electronAPI?.transcription?.pushChunk?.({
           speaker,
-          mimeType: blobToSend.type || event.data.type || mimeType || 'audio/webm',
+          mimeType: event.data.type || mimeType || 'audio/webm',
           audioBase64: arrayBufferToBase64(buffer),
           callId,
         });
@@ -104,7 +92,22 @@ const ActiveCall = () => {
         // noop
       }
     };
-    recorder.start(1400);
+    recorder.onstop = () => {
+      if (flushTimer) {
+        clearInterval(flushTimer);
+        flushTimer = null;
+      }
+    };
+    recorder.start(1200);
+    flushTimer = setInterval(() => {
+      if (recorder.state === 'recording') {
+        try {
+          recorder.requestData();
+        } catch {
+          // noop
+        }
+      }
+    }, 1200);
     return recorder;
   }, []);
 
