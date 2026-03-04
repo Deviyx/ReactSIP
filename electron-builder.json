@@ -9,6 +9,7 @@
     "renderer-dist/**/*",
     "public/electron.js",
     "public/preload.js",
+    "scripts/faster_whisper_worker.py",
     "package.json",
     "node_modules/**/*"
   ],

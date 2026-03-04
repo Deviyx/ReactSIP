@@ -1,5 +1,6 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
-import { Mic, PauseCircle, PhoneOff, UserRound, Volume2 } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Captions, Mic, PauseCircle, PhoneOff, UserRound, Volume2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useSIPContext } from '../context/SIPContext';
 import { useSIP } from '../hooks/useSIP';
 import { useCallTimer } from '../hooks/useCallTimer';
@@ -14,12 +15,124 @@ const ActiveCall = () => {
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState('');
   const [pressedTone, setPressedTone] = useState(null);
+  const [transcribing, setTranscribing] = useState(false);
   const pressTimerRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const remoteStreamRef = useRef(null);
+  const localRecorderRef = useRef(null);
+  const remoteRecorderRef = useRef(null);
 
   const activeCall = [...calls].reverse().find((call) => call && !['ended', 'failed'].includes(call.status));
   if (!activeCall) return null;
 
   const timer = useCallTimer(activeCall.startTime);
+
+  const arrayBufferToBase64 = (buffer) => {
+    const bytes = new Uint8Array(buffer);
+    const step = 0x8000;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += step) {
+      const chunk = bytes.subarray(i, i + step);
+      binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+  };
+
+  const getRecorderMimeType = () => {
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm'];
+    return candidates.find((value) => MediaRecorder.isTypeSupported(value)) || '';
+  };
+
+  const stopTranscriptionCapture = useCallback(async () => {
+    [localRecorderRef.current, remoteRecorderRef.current].forEach((recorder) => {
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
+    });
+    localRecorderRef.current = null;
+    remoteRecorderRef.current = null;
+
+    [localStreamRef.current, remoteStreamRef.current].forEach((stream) => {
+      stream?.getTracks?.().forEach((track) => track.stop());
+    });
+    localStreamRef.current = null;
+    remoteStreamRef.current = null;
+
+    try {
+      await window.electronAPI?.transcription?.stop?.();
+    } catch {
+      // noop
+    }
+    try {
+      await window.electronAPI?.app?.closeTranscriptionWindow?.();
+    } catch {
+      // noop
+    }
+
+    setTranscribing(false);
+  }, []);
+
+  const startRecorder = useCallback((stream, speaker, callId) => {
+    if (!stream) return null;
+    const mimeType = getRecorderMimeType();
+    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    recorder.ondataavailable = async (event) => {
+      if (!event.data || event.data.size < 3000) return;
+      try {
+        const buffer = await event.data.arrayBuffer();
+        await window.electronAPI?.transcription?.pushChunk?.({
+          speaker,
+          mimeType: event.data.type || mimeType || 'audio/webm',
+          audioBase64: arrayBufferToBase64(buffer),
+          callId,
+        });
+      } catch {
+        // noop
+      }
+    };
+    recorder.start(3500);
+    return recorder;
+  }, []);
+
+  const startTranscriptionCapture = useCallback(async () => {
+    try {
+      await window.electronAPI?.app?.openTranscriptionWindow?.();
+
+      const started = await window.electronAPI?.transcription?.start?.({
+        model: 'base',
+        language: 'pt',
+        device: 'cpu',
+        compute_type: 'int8',
+      });
+      if (!started?.success) {
+        toast.error(`Transcription unavailable: ${started?.error || 'unknown error'}`);
+        return;
+      }
+
+      const localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      localStreamRef.current = localStream;
+      localRecorderRef.current = startRecorder(localStream, 'agent', activeCall.id);
+
+      const remoteEl = window.__reactsipRemoteAudioEl;
+      const remoteStream = remoteEl?.captureStream?.() || remoteEl?.mozCaptureStream?.() || null;
+      if (remoteStream && remoteStream.getAudioTracks().length > 0) {
+        remoteStreamRef.current = remoteStream;
+        remoteRecorderRef.current = startRecorder(remoteStream, 'client', activeCall.id);
+      } else {
+        toast('Client audio capture is not available yet');
+      }
+
+      setTranscribing(true);
+      toast.success('Live transcription started');
+    } catch (error) {
+      toast.error(`Transcription error: ${error?.message || 'unknown'}`);
+      await stopTranscriptionCapture();
+    }
+  }, [activeCall.id, startRecorder, stopTranscriptionCapture]);
 
   const onTransfer = () => {
     if (!transferTarget.trim()) return;
@@ -51,7 +164,8 @@ const ActiveCall = () => {
 
   useEffect(() => () => {
     if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-  }, []);
+    stopTranscriptionCapture().catch(() => {});
+  }, [stopTranscriptionCapture]);
 
   return (
     <div className="surface-card active-call-layout">
@@ -88,6 +202,16 @@ const ActiveCall = () => {
           Transfer
         </button>
       </div>
+
+      <button
+        type="button"
+        className={`secondary-btn ${transcribing ? 'state-btn-on' : ''}`}
+        onClick={() => (transcribing ? stopTranscriptionCapture() : startTranscriptionCapture())}
+        title={transcribing ? 'Stop live transcription' : 'Start live transcription'}
+      >
+        <Captions size={16} />
+        {transcribing ? 'Stop Transcript' : 'Live Transcript'}
+      </button>
 
       {transferOpen && (
         <div className="transfer-panel">

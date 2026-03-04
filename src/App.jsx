@@ -10,16 +10,25 @@ import Settings from './components/Settings';
 import CallHistory from './components/CallHistory';
 import StatusBar from './components/StatusBar';
 import Debug from './components/Debug';
+import TranscriptionWindow from './components/TranscriptionWindow';
 import './App.css';
 
 function App() {
+  const isTranscriptionWindow = typeof window !== 'undefined' && window.location.hash === '#transcription';
   const [activeTab, setActiveTab] = useState('dialpad');
   const [theme, setTheme] = useState(() => localStorage.getItem('microsip-theme') || 'light');
   const { calls, settings } = useSIPContext();
   const { micPermission } = useAudio({ autoRequest: false });
   const showDebugTab = Boolean(settings?.show_debug_tab);
 
-  const showActiveCall = Array.isArray(calls) && calls.some((call) => call && !['ended', 'failed'].includes(call.status));
+  const showActiveCall = Array.isArray(calls) && calls.some((call) => {
+    if (!call) return false;
+    const status = String(call.status || '').toLowerCase();
+    const direction = String(call.direction || '').toLowerCase();
+    if (['ended', 'failed', 'cancelled', 'rejected', 'terminated', 'busy', 'no_answer'].includes(status)) return false;
+    if (direction === 'incoming' && status === 'ringing') return false;
+    return true;
+  });
 
   useEffect(() => {
     if (micPermission === false) {
@@ -73,6 +82,10 @@ function App() {
     { id: 'settings', icon: SettingsIcon, label: 'Settings' },
     ...(showDebugTab ? [{ id: 'debug', icon: Bug, label: 'Debug' }] : []),
   ];
+
+  if (isTranscriptionWindow) {
+    return <TranscriptionWindow />;
+  }
 
   return (
     <div className={`app-root ${settings?.hyper_compact_mode ? 'hyper-compact' : ''}`}>

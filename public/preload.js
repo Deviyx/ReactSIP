@@ -10,6 +10,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     toggleMaximizeWindow: () => ipcRenderer.invoke('app:window-toggle-maximize'),
     closeWindow: () => ipcRenderer.invoke('app:window-close'),
     setHyperCompactMode: (enabled) => ipcRenderer.invoke('app:set-hyper-compact-mode', !!enabled),
+    openTranscriptionWindow: () => ipcRenderer.invoke('app:open-transcription-window'),
+    closeTranscriptionWindow: () => ipcRenderer.invoke('app:close-transcription-window'),
+  },
+
+  transcription: {
+    ensureRuntime: (forceDownload = false) => ipcRenderer.invoke('transcription:ensure-runtime', !!forceDownload),
+    start: (options) => ipcRenderer.invoke('transcription:start', options || {}),
+    stop: () => ipcRenderer.invoke('transcription:stop'),
+    pushChunk: (chunk) => ipcRenderer.invoke('transcription:push-chunk', chunk),
   },
 
   // SIP operations
@@ -78,6 +87,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('app:window-state', (event, payload) => callback(payload));
   },
 
+  onTranscriptionEvent: (callback) => {
+    ipcRenderer.on('transcription:event', (event, payload) => callback(payload));
+  },
+
   // Cleanup listeners
   removeAllListeners: () => {
     ipcRenderer.removeAllListeners('sip:connection-status');
@@ -91,5 +104,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('sip:event');
     ipcRenderer.removeAllListeners('app:update-status');
     ipcRenderer.removeAllListeners('app:window-state');
+    ipcRenderer.removeAllListeners('transcription:event');
   },
 });

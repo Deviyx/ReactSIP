@@ -23,6 +23,11 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install dependencies
         run: npm ci
 
@@ -42,6 +47,23 @@ jobs:
       - name: Publish release assets to GitHub
         run: npx electron-builder --win nsis portable --publish never
 
+      - name: Build whisper runtime package
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller faster-whisper
+          if (-not (Test-Path "release")) {
+            New-Item -ItemType Directory -Path "release" | Out-Null
+          }
+          if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
+          if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
+          if (Test-Path "whisper-runtime") { Remove-Item -Recurse -Force "whisper-runtime" }
+          python -m PyInstaller --noconfirm --clean --onefile --name faster-whisper-worker scripts/faster_whisper_worker.py
+          New-Item -ItemType Directory -Path "whisper-runtime" | Out-Null
+          Copy-Item "dist/faster-whisper-worker.exe" "whisper-runtime/faster-whisper-worker.exe" -Force
+          Compress-Archive -Path "whisper-runtime/*" -DestinationPath "release/whisper-runtime-win-x64.zip" -Force
+          Get-ChildItem "release/whisper-runtime-win-x64.zip" | Format-List FullName, Length
+
       - name: Publish assets to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -51,6 +73,7 @@ jobs:
             release/*.exe
             release/*.blockmap
             release/latest*.yml
+            release/whisper-runtime-win-x64.zip
           fail_on_unmatched_files: false
           generate_release_notes: true
 
@@ -63,4 +86,5 @@ jobs:
             release/*.exe
             release/*.blockmap
             release/latest*.yml
+            release/whisper-runtime-win-x64.zip
           if-no-files-found: ignore

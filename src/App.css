@@ -1620,6 +1620,103 @@ input {
   border-color: rgba(246, 196, 0, 0.42);
 }
 
+.transcription-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: var(--screen-bg);
+  color: var(--text-main);
+}
+
+.transcription-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.transcription-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transcription-title-wrap h1 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.1;
+}
+
+.transcription-status {
+  font-size: 12px;
+  color: var(--text-soft);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel-bg);
+  padding: 7px 9px;
+}
+
+.transcription-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transcription-empty {
+  color: var(--text-soft);
+  font-size: 13px;
+  border: 1px dashed var(--panel-border);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+}
+
+.transcription-item {
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  padding: 8px 10px;
+}
+
+.transcription-agent {
+  background: color-mix(in srgb, var(--success) 12%, var(--panel-bg) 88%);
+}
+
+.transcription-client {
+  background: color-mix(in srgb, #60a5fa 12%, var(--panel-bg) 88%);
+}
+
+.transcription-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.transcription-speaker {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-weight: 800;
+}
+
+.transcription-time {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.transcription-text {
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 @keyframes pop-in {
   from {
     opacity: 0;

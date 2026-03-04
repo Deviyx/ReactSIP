@@ -1,10 +1,11 @@
 const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
 const path = require('path');
+const https = require('https');
 const dgram = require('dgram');
 const os = require('os');
 const crypto = require('crypto');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const readline = require('readline');
 let autoUpdater = null;
 try {
@@ -18,8 +19,10 @@ const DEV_SERVER_URL = process.env.ELECTRON_RENDERER_URL || process.env.VITE_DEV
 const isDev = !app.isPackaged;
 
 let mainWindow;
+let transcriptionWindow = null;
 let sipClient = null;
 let nativeSipBridge = null;
+let transcriptionBridge = null;
 let currentSettings = null;
 let preferNativeEngine = process.env.SIP_ENGINE === 'native';
 let updateCheckTimer = null;
@@ -28,6 +31,9 @@ const ENGINE_READY_TIMEOUT_MS = 6000;
 const UPDATE_CHECK_INTERVAL_MS = 1000 * 60 * 60 * 4;
 const WINDOW_NORMAL = { width: 360, height: 700, minWidth: 340, minHeight: 620 };
 const WINDOW_COMPACT = { width: 320, height: 600, minWidth: 300, minHeight: 520 };
+const WHISPER_RUNTIME_ASSET = process.env.WHISPER_RUNTIME_ASSET || 'whisper-runtime-win-x64.zip';
+const WHISPER_RUNTIME_URL = process.env.WHISPER_RUNTIME_URL || `https://github.com/Deviyx/ReactSIP/releases/latest/download/${WHISPER_RUNTIME_ASSET}`;
+const WHISPER_RUNTIME_DIRNAME = 'whisper-runtime';
 
 function configureMediaPermissions() {
   const ses = session.defaultSession;
@@ -58,8 +64,117 @@ function emitRenderer(channel, payload) {
   }
 }
 
+function emitAllWindows(channel, payload) {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    if (!win || win.isDestroyed()) return;
+    win.webContents.send(channel, payload);
+  });
+}
+
 function emitUpdateStatus(payload) {
   emitRenderer('app:update-status', payload);
+}
+
+function emitTranscriptionStatus(state, payload = {}) {
+  emitAllWindows('transcription:event', { type: state, payload });
+}
+
+function getWhisperRuntimeDir() {
+  return path.join(app.getPath('userData'), WHISPER_RUNTIME_DIRNAME);
+}
+
+function getWhisperRuntimeWorkerPath() {
+  return path.join(getWhisperRuntimeDir(), 'faster-whisper-worker.exe');
+}
+
+function downloadFile(url, destination, onProgress) {
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, (response) => {
+      if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location) {
+        const redirect = response.headers.location.startsWith('http')
+          ? response.headers.location
+          : new URL(response.headers.location, url).toString();
+        response.resume();
+        downloadFile(redirect, destination, onProgress).then(resolve).catch(reject);
+        return;
+      }
+
+      if (response.statusCode !== 200) {
+        response.resume();
+        reject(new Error(`Runtime download failed (${response.statusCode})`));
+        return;
+      }
+
+      const total = Number(response.headers['content-length'] || 0);
+      let transferred = 0;
+      const file = fs.createWriteStream(destination);
+
+      response.on('data', (chunk) => {
+        transferred += chunk.length;
+        if (typeof onProgress === 'function') {
+          const percent = total > 0 ? (transferred / total) * 100 : 0;
+          onProgress({ transferred, total, percent });
+        }
+      });
+
+      response.pipe(file);
+      file.on('finish', () => file.close(() => resolve()));
+      file.on('error', (err) => reject(err));
+    });
+
+    request.on('error', reject);
+  });
+}
+
+function extractZipWindows(zipPath, destDir) {
+  return new Promise((resolve, reject) => {
+    const ps = spawn('powershell', [
+      '-NoProfile',
+      '-ExecutionPolicy', 'Bypass',
+      '-Command',
+      `Expand-Archive -Path "${zipPath.replace(/"/g, '""')}" -DestinationPath "${destDir.replace(/"/g, '""')}" -Force`,
+    ], { windowsHide: true });
+
+    let stderr = '';
+    ps.stderr.on('data', (chunk) => {
+      stderr += String(chunk || '');
+    });
+
+    ps.on('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr.trim() || `Expand-Archive failed with code ${code}`));
+    });
+  });
+}
+
+async function ensureWhisperRuntime(forceDownload = false) {
+  const workerPath = getWhisperRuntimeWorkerPath();
+  if (!forceDownload && fs.existsSync(workerPath)) {
+    return { success: true, installed: true, workerPath };
+  }
+
+  emitTranscriptionStatus('runtime_installing', { message: 'Installing transcription runtime...' });
+  const runtimeDir = getWhisperRuntimeDir();
+  fs.mkdirSync(runtimeDir, { recursive: true });
+  const zipPath = path.join(runtimeDir, WHISPER_RUNTIME_ASSET);
+
+  try {
+    await downloadFile(WHISPER_RUNTIME_URL, zipPath, (progress) => {
+      emitTranscriptionStatus('runtime_download_progress', progress);
+    });
+    emitTranscriptionStatus('runtime_extracting', { message: 'Extracting transcription runtime...' });
+    await extractZipWindows(zipPath, runtimeDir);
+  } finally {
+    if (fs.existsSync(zipPath)) {
+      try { fs.unlinkSync(zipPath); } catch { /* ignore */ }
+    }
+  }
+
+  if (!fs.existsSync(workerPath)) {
+    throw new Error(`Runtime installed but worker not found: ${workerPath}`);
+  }
+  emitTranscriptionStatus('runtime_ready', { workerPath });
+  return { success: true, installed: true, workerPath };
 }
 
 function checkForUpdatesInBackground() {
@@ -429,6 +544,214 @@ class NativeSipBridge {
   ping() {
     return this.sendCommand('ping');
   }
+}
+
+class WhisperTranscriptionBridge {
+  constructor() {
+    this.proc = null;
+    this.rl = null;
+    this.pending = new Map();
+    this.reqCounter = 0;
+    this.ready = false;
+    this.starting = false;
+    this.launch = this.resolveLaunch();
+  }
+
+  resolveScriptPath() {
+    const candidates = [];
+    if (app.isPackaged) {
+      candidates.push(path.join(process.resourcesPath, 'scripts', 'faster_whisper_worker.py'));
+    }
+    candidates.push(path.join(app.getAppPath(), 'scripts', 'faster_whisper_worker.py'));
+    candidates.push(path.join(process.cwd(), 'scripts', 'faster_whisper_worker.py'));
+    return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0];
+  }
+
+  resolvePythonLaunch() {
+    const candidates = [
+      { cmd: 'py', args: ['-3'] },
+      { cmd: 'python', args: [] },
+      { cmd: 'python3', args: [] },
+    ];
+    for (const candidate of candidates) {
+      try {
+        const probe = spawnSync(candidate.cmd, [...candidate.args, '--version'], {
+          encoding: 'utf8',
+          windowsHide: true,
+        });
+        if (probe && probe.status === 0) return candidate;
+      } catch {
+        // probe failed
+      }
+    }
+    return null;
+  }
+
+  resolveLaunch() {
+    const runtimeExe = getWhisperRuntimeWorkerPath();
+    if (fs.existsSync(runtimeExe)) {
+      return { cmd: runtimeExe, args: [], mode: 'runtime-exe' };
+    }
+
+    const scriptPath = this.resolveScriptPath();
+    const py = this.resolvePythonLaunch();
+    if (scriptPath && py) {
+      return { cmd: py.cmd, args: [...py.args, scriptPath], mode: 'python-script', scriptPath };
+    }
+    return null;
+  }
+
+  refreshLaunch() {
+    this.launch = this.resolveLaunch();
+    return this.launch;
+  }
+
+  exists() {
+    if (!this.launch) return false;
+    if (this.launch.mode === 'runtime-exe') return fs.existsSync(this.launch.cmd);
+    if (this.launch.mode === 'python-script') return fs.existsSync(this.launch.scriptPath || '');
+    return false;
+  }
+
+  async start() {
+    if (this.ready) return;
+    if (this.starting) return;
+    this.refreshLaunch();
+    if (!this.exists()) {
+      throw new Error('Whisper runtime is missing. Install runtime first.');
+    }
+
+    this.starting = true;
+    this.proc = spawn(this.launch.cmd, this.launch.args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+
+    this.proc.on('exit', (code, signal) => {
+      this.ready = false;
+      this.starting = false;
+      this.rejectAllPending(new Error('Whisper worker exited'));
+      emitAllWindows('transcription:event', {
+        type: 'error',
+        payload: { message: `Whisper worker exited (${code || signal || 'unknown'})` },
+      });
+    });
+
+    this.proc.stderr.on('data', (chunk) => {
+      const line = String(chunk || '').trim();
+      if (!line) return;
+      emitAllWindows('transcription:event', {
+        type: 'log',
+        payload: { line },
+      });
+    });
+
+    this.rl = readline.createInterface({ input: this.proc.stdout });
+    this.rl.on('line', (line) => this.handleLine(line));
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Whisper startup timeout')), 8000);
+      this.offReady = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+    });
+
+    this.starting = false;
+  }
+
+  stop() {
+    this.ready = false;
+    this.starting = false;
+    if (this.rl) {
+      this.rl.close();
+      this.rl = null;
+    }
+    if (this.proc) {
+      this.proc.kill();
+      this.proc = null;
+    }
+    this.rejectAllPending(new Error('Whisper worker stopped'));
+  }
+
+  rejectAllPending(err) {
+    this.pending.forEach(({ reject }) => reject(err));
+    this.pending.clear();
+  }
+
+  handleLine(line) {
+    const text = String(line || '').trim();
+    if (!text) return;
+
+    let msg;
+    try {
+      msg = JSON.parse(text);
+    } catch {
+      emitAllWindows('transcription:event', {
+        type: 'log',
+        payload: { line: text },
+      });
+      return;
+    }
+
+    if (msg.type === 'event') {
+      if (msg.event === 'engine_ready') {
+        this.ready = true;
+        if (typeof this.offReady === 'function') this.offReady();
+      }
+      emitAllWindows('transcription:event', {
+        type: msg.event,
+        payload: msg.payload || {},
+      });
+      return;
+    }
+
+    if (msg.type === 'response' && msg.requestId) {
+      const entry = this.pending.get(msg.requestId);
+      if (!entry) return;
+      this.pending.delete(msg.requestId);
+      if (msg.ok) entry.resolve(msg.payload || {});
+      else entry.reject(new Error(msg.error || 'Whisper command failed'));
+    }
+  }
+
+  sendCommand(command, payload = {}) {
+    if (!this.proc || !this.proc.stdin || this.proc.killed) {
+      return Promise.reject(new Error('Whisper worker is not running.'));
+    }
+    const requestId = `wreq_${++this.reqCounter}`;
+    const packet = { type: 'command', requestId, command, payload };
+
+    return new Promise((resolve, reject) => {
+      this.pending.set(requestId, { resolve, reject });
+      this.proc.stdin.write(`${JSON.stringify(packet)}\n`, (err) => {
+        if (err) {
+          this.pending.delete(requestId);
+          reject(err);
+        }
+      });
+    });
+  }
+
+  async startSession(options = {}) {
+    await this.start();
+    return this.sendCommand('start_session', options);
+  }
+
+  stopSession() {
+    return this.sendCommand('stop_session');
+  }
+
+  transcribeChunk(chunk = {}) {
+    return this.sendCommand('transcribe_chunk', chunk);
+  }
+}
+
+function ensureTranscriptionBridge() {
+  if (!transcriptionBridge) {
+    transcriptionBridge = new WhisperTranscriptionBridge();
+  }
+  return transcriptionBridge;
 }
 
 function isUdpTransport(settings = {}) {
@@ -1381,6 +1704,14 @@ function createWindow() {
       nativeSipBridge.stop();
       nativeSipBridge = null;
     }
+    if (transcriptionBridge) {
+      transcriptionBridge.stop();
+      transcriptionBridge = null;
+    }
+    if (transcriptionWindow && !transcriptionWindow.isDestroyed()) {
+      transcriptionWindow.close();
+      transcriptionWindow = null;
+    }
     app.quit();
   });
 
@@ -1388,11 +1719,64 @@ function createWindow() {
   mainWindow.on('unmaximize', () => emitRenderer('app:window-state', { maximized: false }));
 }
 
+function createTranscriptionWindow() {
+  if (transcriptionWindow && !transcriptionWindow.isDestroyed()) {
+    transcriptionWindow.focus();
+    return transcriptionWindow;
+  }
+
+  transcriptionWindow = new BrowserWindow({
+    width: 540,
+    height: 720,
+    minWidth: 420,
+    minHeight: 520,
+    resizable: true,
+    maximizable: true,
+    autoHideMenuBar: true,
+    title: 'ReactSIP Live Transcript',
+    backgroundColor: '#0f172a',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableRemoteModule: false,
+    },
+  });
+
+  const distIndexPath = path.join(__dirname, '../renderer-dist/index.html');
+  if (isDev) {
+    transcriptionWindow.loadURL(`${DEV_SERVER_URL}#transcription`);
+  } else {
+    transcriptionWindow.loadFile(distIndexPath, { hash: 'transcription' });
+  }
+
+  transcriptionWindow.on('closed', () => {
+    transcriptionWindow = null;
+  });
+
+  return transcriptionWindow;
+}
+
 // ============ App Events ============
 app.on('ready', () => {
   configureMediaPermissions();
   createWindow();
   setupAutoUpdater();
+
+  // Install transcription runtime in background on first startup (Windows).
+  if (process.platform === 'win32' && app.isPackaged) {
+    setTimeout(async () => {
+      try {
+        const bridge = ensureTranscriptionBridge();
+        if (!bridge.exists()) {
+          await ensureWhisperRuntime(false);
+          bridge.refreshLaunch();
+        }
+      } catch (error) {
+        emitTranscriptionStatus('runtime_error', { message: error.message });
+      }
+    }, 3500);
+  }
 });
 
 app.on('before-quit', () => {
@@ -1773,4 +2157,70 @@ ipcMain.handle('app:set-hyper-compact-mode', async (_event, enabled) => {
   mainWindow.setSize(Math.max(nextWidth, mode.minWidth), Math.max(nextHeight, mode.minHeight), true);
 
   return { success: true, compact: !!enabled };
+});
+
+ipcMain.handle('app:open-transcription-window', async () => {
+  try {
+    createTranscriptionWindow();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('app:close-transcription-window', async () => {
+  try {
+    if (transcriptionWindow && !transcriptionWindow.isDestroyed()) {
+      transcriptionWindow.close();
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('transcription:start', async (_event, options) => {
+  try {
+    const bridge = ensureTranscriptionBridge();
+    if (!bridge.exists()) {
+      await ensureWhisperRuntime(false);
+      bridge.refreshLaunch();
+    }
+    const payload = await bridge.startSession(options || {});
+    return { success: true, ...payload };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('transcription:ensure-runtime', async (_event, forceDownload = false) => {
+  try {
+    const payload = await ensureWhisperRuntime(!!forceDownload);
+    const bridge = ensureTranscriptionBridge();
+    bridge.refreshLaunch();
+    return { success: true, ...payload };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('transcription:stop', async () => {
+  try {
+    if (!transcriptionBridge) return { success: true };
+    await transcriptionBridge.stopSession();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('transcription:push-chunk', async (_event, chunk) => {
+  try {
+    const bridge = ensureTranscriptionBridge();
+    await bridge.start();
+    const payload = await bridge.transcribeChunk(chunk || {});
+    return { success: true, ...payload };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });
