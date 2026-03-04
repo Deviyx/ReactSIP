@@ -126,6 +126,9 @@ export const useSIP = () => {
   }, [incomingCallData]);
 
   const ensureToneContext = useCallback(async () => {
+    if (toneContextRef.current && toneContextRef.current.state === 'closed') {
+      toneContextRef.current = null;
+    }
     if (toneContextRef.current) return toneContextRef.current;
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return null;
@@ -146,47 +149,60 @@ export const useSIP = () => {
   const startRingback = useCallback(async () => {
     if (ringbackStartedRef.current) return;
     const ctx = await ensureToneContext();
-    if (!ctx) return;
+    if (!ctx || ctx.state === 'closed') return;
 
     const playBurst = () => {
-      const now = ctx.currentTime;
-      [440, 480].forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.linearRampToValueAtTime(0.045, now + (idx === 0 ? 0.02 : 0.24));
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + (idx === 0 ? 0.2 : 0.42));
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now + (idx === 0 ? 0 : 0.22));
-        osc.stop(now + (idx === 0 ? 0.22 : 0.45));
-      });
+      if (!ctx || ctx.state === 'closed') {
+        stopRingback();
+        return;
+      }
+      try {
+        const now = ctx.currentTime;
+        [440, 480].forEach((freq, idx) => {
+          if (ctx.state === 'closed') return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(0.045, now + (idx === 0 ? 0.02 : 0.24));
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + (idx === 0 ? 0.2 : 0.42));
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + (idx === 0 ? 0 : 0.22));
+          osc.stop(now + (idx === 0 ? 0.22 : 0.45));
+        });
+      } catch {
+        stopRingback();
+      }
     };
 
     playBurst();
     ringbackTimerRef.current = setInterval(playBurst, 1800);
     ringbackStartedRef.current = true;
-  }, [ensureToneContext]);
+  }, [ensureToneContext, stopRingback]);
 
   const playHangupTone = useCallback(async () => {
     const ctx = await ensureToneContext();
-    if (!ctx) return;
+    if (!ctx || ctx.state === 'closed') return;
 
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(520, now);
-    osc.frequency.exponentialRampToValueAtTime(220, now + 0.22);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.05, now + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.28);
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.22);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.05, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.28);
+    } catch {
+      // Audio context may have been closed between checks.
+    }
   }, [ensureToneContext]);
 
   useEffect(() => () => {

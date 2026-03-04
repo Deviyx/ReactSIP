@@ -16,6 +16,9 @@ const ActiveCall = () => {
   const [transferTarget, setTransferTarget] = useState('');
   const [pressedTone, setPressedTone] = useState(null);
   const [transcribing, setTranscribing] = useState(false);
+  const [runtimeBusy, setRuntimeBusy] = useState(false);
+  const [runtimeProgress, setRuntimeProgress] = useState(0);
+  const [runtimeStatus, setRuntimeStatus] = useState('idle');
   const pressTimerRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
@@ -67,6 +70,7 @@ const ActiveCall = () => {
     }
 
     setTranscribing(false);
+    setRuntimeStatus('idle');
   }, []);
 
   const startRecorder = useCallback((stream, speaker, callId) => {
@@ -96,6 +100,19 @@ const ActiveCall = () => {
       if (!activeCallId) return;
       await window.electronAPI?.app?.openTranscriptionWindow?.();
 
+      setRuntimeBusy(true);
+      setRuntimeStatus('checking runtime');
+      const runtimeRes = await window.electronAPI?.transcription?.ensureRuntime?.(false);
+      if (!runtimeRes?.success) {
+        setRuntimeBusy(false);
+        setRuntimeStatus(`runtime error: ${runtimeRes?.error || 'unknown error'}`);
+        toast.error(`Whisper runtime install failed: ${runtimeRes?.error || 'unknown error'}`);
+        return;
+      }
+      setRuntimeBusy(false);
+      setRuntimeProgress(100);
+      setRuntimeStatus('runtime ready');
+
       const started = await window.electronAPI?.transcription?.start?.({
         model: 'base',
         language: 'pt',
@@ -103,6 +120,7 @@ const ActiveCall = () => {
         compute_type: 'int8',
       });
       if (!started?.success) {
+        setRuntimeStatus(`transcription unavailable: ${started?.error || 'unknown error'}`);
         toast.error(`Transcription unavailable: ${started?.error || 'unknown error'}`);
         return;
       }
@@ -127,10 +145,13 @@ const ActiveCall = () => {
       }
 
       setTranscribing(true);
+      setRuntimeStatus('transcribing');
       toast.success('Live transcription started');
     } catch (error) {
       toast.error(`Transcription error: ${error?.message || 'unknown'}`);
       await stopTranscriptionCapture();
+    } finally {
+      setRuntimeBusy(false);
     }
   }, [activeCallId, startRecorder, stopTranscriptionCapture]);
 
@@ -166,6 +187,34 @@ const ActiveCall = () => {
     if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
     stopTranscriptionCapture().catch(() => {});
   }, [stopTranscriptionCapture]);
+
+  useEffect(() => {
+    if (!window.electronAPI?.onTranscriptionEvent) return undefined;
+    window.electronAPI.onTranscriptionEvent((event) => {
+      if (!event?.type) return;
+      if (event.type === 'runtime_installing') {
+        setRuntimeBusy(true);
+        setRuntimeProgress(0);
+        setRuntimeStatus('installing runtime');
+      } else if (event.type === 'runtime_download_progress') {
+        setRuntimeBusy(true);
+        setRuntimeProgress(Math.max(0, Math.min(100, Math.round(event.payload?.percent || 0))));
+        setRuntimeStatus(`downloading runtime (${Math.max(0, Math.min(100, Math.round(event.payload?.percent || 0)))}%)`);
+      } else if (event.type === 'runtime_extracting') {
+        setRuntimeBusy(true);
+        setRuntimeStatus('extracting runtime');
+      } else if (event.type === 'runtime_ready') {
+        setRuntimeBusy(false);
+        setRuntimeProgress(100);
+        setRuntimeStatus('runtime ready');
+      } else if (event.type === 'runtime_error') {
+        setRuntimeBusy(false);
+        setRuntimeStatus(`runtime error: ${event.payload?.message || 'unknown'}`);
+        toast.error(event.payload?.message || 'Whisper runtime error');
+      }
+    });
+    return undefined;
+  }, []);
 
   if (!activeCall) return null;
 
@@ -209,11 +258,15 @@ const ActiveCall = () => {
         type="button"
         className={`secondary-btn ${transcribing ? 'state-btn-on' : ''}`}
         onClick={() => (transcribing ? stopTranscriptionCapture() : startTranscriptionCapture())}
+        disabled={runtimeBusy}
         title={transcribing ? 'Stop live transcription' : 'Start live transcription'}
       >
         <Captions size={16} />
-        {transcribing ? 'Stop Transcript' : 'Live Transcript'}
+        {runtimeBusy ? `Installing Whisper... ${runtimeProgress}%` : transcribing ? 'Stop Transcript' : 'Live Transcript'}
       </button>
+      <div className="mini-hint" style={{ marginTop: 6 }}>
+        Whisper: {runtimeStatus}
+      </div>
 
       {transferOpen && (
         <div className="transfer-panel">

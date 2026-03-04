@@ -22,6 +22,9 @@ export const useDtmfTone = () => {
     if (typeof window === 'undefined') return null;
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return null;
+    if (audioCtxRef.current && audioCtxRef.current.state === 'closed') {
+      audioCtxRef.current = null;
+    }
     if (!audioCtxRef.current) {
       audioCtxRef.current = new Ctx();
     }
@@ -38,23 +41,28 @@ export const useDtmfTone = () => {
     const ctx = ensureContext();
     if (!ctx) return;
 
-    const now = ctx.currentTime;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.14, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
-    gain.connect(ctx.destination);
+    if (ctx.state === 'closed') return;
+    try {
+      const now = ctx.currentTime;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.14, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
+      gain.connect(ctx.destination);
 
-    freqs.forEach((freq) => {
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now);
-      osc.connect(gain);
-      osc.start(now);
-      osc.stop(now + durationMs / 1000 + 0.015);
-    });
+      freqs.forEach((freq) => {
+        if (ctx.state === 'closed') return;
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.connect(gain);
+        osc.start(now);
+        osc.stop(now + durationMs / 1000 + 0.015);
+      });
+    } catch {
+      // Context changed while building DTMF graph; ignore safely.
+    }
   }, [ensureContext]);
 
   return { playTone };
 };
-

@@ -50,6 +50,9 @@ const Settings = () => {
   const [engineStatus, setEngineStatus] = useState('unknown');
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [activeTab, setActiveTab] = useState('sip');
+  const [whisperStatus, setWhisperStatus] = useState('not installed');
+  const [whisperInstalling, setWhisperInstalling] = useState(false);
+  const [whisperProgress, setWhisperProgress] = useState(0);
 
   useEffect(() => {
     if (settings.audio_input_volume != null) setInputVolume(settings.audio_input_volume);
@@ -136,6 +139,53 @@ const Settings = () => {
     } catch {
       // noop
     }
+  };
+
+  useEffect(() => {
+    if (!window.electronAPI?.onTranscriptionEvent) return undefined;
+    window.electronAPI.onTranscriptionEvent((event) => {
+      if (!event?.type) return;
+      if (event.type === 'runtime_installing') {
+        setWhisperInstalling(true);
+        setWhisperStatus('installing');
+        setWhisperProgress(0);
+      } else if (event.type === 'runtime_download_progress') {
+        setWhisperInstalling(true);
+        setWhisperStatus('downloading');
+        setWhisperProgress(Math.max(0, Math.min(100, Math.round(event.payload?.percent || 0))));
+      } else if (event.type === 'runtime_extracting') {
+        setWhisperInstalling(true);
+        setWhisperStatus('extracting');
+      } else if (event.type === 'runtime_ready') {
+        setWhisperInstalling(false);
+        setWhisperStatus('ready');
+        setWhisperProgress(100);
+      } else if (event.type === 'runtime_error') {
+        setWhisperInstalling(false);
+        setWhisperStatus(`error: ${event.payload?.message || 'unknown'}`);
+      }
+    });
+    return undefined;
+  }, []);
+
+  const installWhisperRuntime = async () => {
+    if (!window.electronAPI?.transcription?.ensureRuntime) {
+      toast.error('Whisper installer API is unavailable');
+      return;
+    }
+    setWhisperInstalling(true);
+    setWhisperStatus('installing');
+    const result = await window.electronAPI.transcription.ensureRuntime(false);
+    if (!result?.success) {
+      setWhisperInstalling(false);
+      setWhisperStatus(`error: ${result?.error || 'unknown'}`);
+      toast.error(`Whisper install failed: ${result?.error || 'unknown error'}`);
+      return;
+    }
+    setWhisperInstalling(false);
+    setWhisperStatus('ready');
+    setWhisperProgress(100);
+    toast.success('Whisper runtime installed');
   };
 
   return (
@@ -498,14 +548,35 @@ const Settings = () => {
                   </div>
                 </div>
 
-                <div className="panel-card panel-card-subtle" style={{ marginTop: 8 }}>
-                  <h3 className="panel-title">Updates</h3>
-                  <button type="button" className="secondary-btn" onClick={checkUpdates} disabled={checkingUpdate}>
-                    {checkingUpdate ? 'Checking...' : 'Check for updates'}
-                  </button>
-                </div>
               </>
             )}
+
+            <div className="panel-card panel-card-subtle" style={{ marginTop: 8 }}>
+              <h3 className="panel-title"><Cpu size={16} style={{ verticalAlign: 'middle' }} /> Whisper Runtime</h3>
+              <div className="meta-grid settings-meta-grid">
+                <div className="meta-tile">
+                  <div className="meta-label">Status</div>
+                  <div className="meta-value">{whisperStatus}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'end' }}>
+                  <button type="button" className="secondary-btn" onClick={installWhisperRuntime} disabled={whisperInstalling}>
+                    {whisperInstalling ? `Installing... ${whisperProgress}%` : 'Install/Update Whisper'}
+                  </button>
+                </div>
+              </div>
+              {whisperInstalling && (
+                <div className="meter-track" style={{ marginTop: 10 }}>
+                  <div className="meter-fill" style={{ width: `${whisperProgress}%` }} />
+                </div>
+              )}
+            </div>
+
+            <div className="panel-card panel-card-subtle" style={{ marginTop: 8 }}>
+              <h3 className="panel-title">Updates</h3>
+              <button type="button" className="secondary-btn" onClick={checkUpdates} disabled={checkingUpdate}>
+                {checkingUpdate ? 'Checking...' : 'Check for updates'}
+              </button>
+            </div>
           </div>
 
           <div className="info-box">

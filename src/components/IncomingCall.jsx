@@ -31,20 +31,29 @@ const IncomingCall = () => {
     await ctx.resume().catch(() => {});
 
     const playBurst = () => {
-      const now = ctx.currentTime;
-      [440, 554].forEach((freq) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.linearRampToValueAtTime(0.06, now + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.25);
-      });
+      if (ctx.state === 'closed') {
+        stopRingtone();
+        return;
+      }
+      try {
+        const now = ctx.currentTime;
+        [440, 554].forEach((freq) => {
+          if (ctx.state === 'closed') return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(0.06, now + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        });
+      } catch {
+        stopRingtone();
+      }
     };
 
     playBurst();
