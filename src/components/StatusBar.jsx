@@ -17,6 +17,7 @@ const StatusBar = ({ theme, onToggleTheme }) => {
   React.useEffect(() => {
     if (!window.electronAPI?.onWindowState) return undefined;
     window.electronAPI.onWindowState((state) => {
+      if (state?.window && state.window !== 'main') return;
       setIsMaximized(Boolean(state?.maximized));
     });
     return undefined;

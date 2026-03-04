@@ -1625,9 +1625,36 @@ input {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px;
+  padding: 8px 10px 10px;
   background: var(--screen-bg);
   color: var(--text-main);
+}
+
+.transcription-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+  padding: 2px 2px 4px;
+  -webkit-app-region: drag;
+}
+
+.transcription-topbar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.transcription-topbar .status-window-actions,
+.transcription-topbar .status-window-btn,
+.transcription-header .icon-btn {
+  -webkit-app-region: no-drag;
 }
 
 .transcription-header {

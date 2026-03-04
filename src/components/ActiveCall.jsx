@@ -127,7 +127,7 @@ const ActiveCall = () => {
       setRuntimeStatus('runtime ready');
 
       const started = await window.electronAPI?.transcription?.start?.({
-        model: 'base',
+        model: 'small',
         language: 'pt',
         device: 'cpu',
         compute_type: 'int8',

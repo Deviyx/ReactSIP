@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { MessageSquareText, Trash2 } from 'lucide-react';
+import { MessageSquareText, Minus, Square, Trash2, X } from 'lucide-react';
 
 const TranscriptionWindow = () => {
   const [entries, setEntries] = useState([]);
   const [status, setStatus] = useState('Idle');
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     if (!window.electronAPI?.onTranscriptionEvent) return undefined;
@@ -70,10 +71,43 @@ const TranscriptionWindow = () => {
     return undefined;
   }, []);
 
+  useEffect(() => {
+    if (!window.electronAPI?.onWindowState) return undefined;
+    window.electronAPI.onWindowState((payload) => {
+      if (payload?.window && payload.window !== 'transcription') return;
+      setIsMaximized(Boolean(payload?.maximized));
+    });
+    return undefined;
+  }, []);
+
   const grouped = useMemo(() => entries.slice(-300), [entries]);
 
   return (
     <div className="transcription-page">
+      <div className="transcription-topbar">
+        <div className="transcription-topbar-title">
+          <MessageSquareText size={15} />
+          <span>ReactSIP</span>
+        </div>
+        <div className="status-window-actions">
+          <button type="button" className="status-window-btn" onClick={() => window.electronAPI?.app?.minimizeWindow?.()} aria-label="Minimize" title="Minimize">
+            <Minus size={12} />
+          </button>
+          <button
+            type="button"
+            className="status-window-btn"
+            onClick={() => window.electronAPI?.app?.toggleMaximizeWindow?.()}
+            aria-label={isMaximized ? 'Restore' : 'Maximize'}
+            title={isMaximized ? 'Restore' : 'Maximize'}
+          >
+            <Square size={10} />
+          </button>
+          <button type="button" className="status-window-btn status-window-btn-close" onClick={() => window.electronAPI?.app?.closeWindow?.()} aria-label="Close" title="Close">
+            <X size={12} />
+          </button>
+        </div>
+      </div>
+
       <header className="transcription-header">
         <div className="transcription-title-wrap">
           <MessageSquareText size={20} />

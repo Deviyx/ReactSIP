@@ -35,7 +35,7 @@ const WHISPER_RUNTIME_ASSET = process.env.WHISPER_RUNTIME_ASSET || 'whisper-runt
 const WHISPER_RUNTIME_URL = process.env.WHISPER_RUNTIME_URL || `https://github.com/Deviyx/ReactSIP/releases/latest/download/${WHISPER_RUNTIME_ASSET}`;
 const WHISPER_RUNTIME_REPO = process.env.WHISPER_RUNTIME_REPO || 'Deviyx/ReactSIP';
 const WHISPER_RUNTIME_DIRNAME = 'whisper-runtime';
-const WHISPER_RUNTIME_SCHEMA_VERSION = process.env.WHISPER_RUNTIME_SCHEMA_VERSION || '3';
+const WHISPER_RUNTIME_SCHEMA_VERSION = process.env.WHISPER_RUNTIME_SCHEMA_VERSION || '4';
 
 function configureMediaPermissions() {
   const ses = session.defaultSession;
@@ -1827,6 +1827,8 @@ function createTranscriptionWindow() {
     maximizable: true,
     autoHideMenuBar: true,
     title: 'ReactSIP Live Transcript',
+    frame: false,
+    titleBarStyle: 'hidden',
     backgroundColor: '#0f172a',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -1846,6 +1848,8 @@ function createTranscriptionWindow() {
   transcriptionWindow.on('closed', () => {
     transcriptionWindow = null;
   });
+  transcriptionWindow.on('maximize', () => emitAllWindows('app:window-state', { maximized: true, window: 'transcription' }));
+  transcriptionWindow.on('unmaximize', () => emitAllWindows('app:window-state', { maximized: false, window: 'transcription' }));
 
   return transcriptionWindow;
 }
@@ -2216,25 +2220,28 @@ ipcMain.handle('app:install-update-now', async () => {
   }
 });
 
-ipcMain.handle('app:window-minimize', async () => {
-  if (!mainWindow || mainWindow.isDestroyed()) return { success: false };
-  mainWindow.minimize();
+ipcMain.handle('app:window-minimize', async (event) => {
+  const senderWindow = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (!senderWindow || senderWindow.isDestroyed()) return { success: false };
+  senderWindow.minimize();
   return { success: true };
 });
 
-ipcMain.handle('app:window-toggle-maximize', async () => {
-  if (!mainWindow || mainWindow.isDestroyed()) return { success: false };
-  if (mainWindow.isMaximized()) {
-    mainWindow.unmaximize();
+ipcMain.handle('app:window-toggle-maximize', async (event) => {
+  const senderWindow = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (!senderWindow || senderWindow.isDestroyed()) return { success: false };
+  if (senderWindow.isMaximized()) {
+    senderWindow.unmaximize();
   } else {
-    mainWindow.maximize();
+    senderWindow.maximize();
   }
-  return { success: true, maximized: mainWindow.isMaximized() };
+  return { success: true, maximized: senderWindow.isMaximized() };
 });
 
-ipcMain.handle('app:window-close', async () => {
-  if (!mainWindow || mainWindow.isDestroyed()) return { success: false };
-  mainWindow.close();
+ipcMain.handle('app:window-close', async (event) => {
+  const senderWindow = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (!senderWindow || senderWindow.isDestroyed()) return { success: false };
+  senderWindow.close();
   return { success: true };
 });
 

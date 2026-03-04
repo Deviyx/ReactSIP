@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 import traceback
 from typing import Any, Dict, Optional
 
@@ -18,10 +19,31 @@ else:
 model = None
 session_started = False
 language = None
+last_emit_by_speaker: Dict[str, Dict[str, Any]] = {}
 
 
 def normalize_ws(text: str) -> str:
     return " ".join((text or "").strip().split())
+
+
+def normalize_compare(text: str) -> str:
+    value = normalize_ws(text).lower()
+    # Keep only alnum/space for fuzzy compare.
+    cleaned = []
+    for ch in value:
+        if ch.isalnum() or ch.isspace():
+            cleaned.append(ch)
+    return normalize_ws("".join(cleaned))
+
+
+def token_similarity(a: str, b: str) -> float:
+    aa = set(normalize_compare(a).split())
+    bb = set(normalize_compare(b).split())
+    if not aa or not bb:
+        return 0.0
+    inter = len(aa & bb)
+    union = len(aa | bb)
+    return (inter / union) if union else 0.0
 
 
 def is_hallucination_loop(text: str) -> bool:
@@ -41,6 +63,35 @@ def is_hallucination_loop(text: str) -> bool:
         return False
     top = max(trigrams.count(t) for t in set(trigrams))
     return top >= max(4, len(trigrams) // 2)
+
+
+def should_emit_text(speaker: str, text: str) -> bool:
+    now = time.time()
+    normalized = normalize_compare(text)
+    words = [w for w in normalized.split(" ") if w]
+    if not words:
+        return False
+
+    # Drop ultra-short noise.
+    if len(words) == 1 and len(words[0]) <= 2:
+        return False
+
+    prev = last_emit_by_speaker.get(speaker)
+    if prev:
+        dt = now - float(prev.get("ts", 0.0))
+        prev_text = str(prev.get("text", ""))
+        sim = token_similarity(prev_text, normalized)
+
+        # Strong anti-spam for short utterances.
+        if len(words) <= 3 and dt < 7.0 and sim >= 0.34:
+            return False
+
+        # Generic anti-duplication.
+        if dt < 5.0 and sim >= 0.65:
+            return False
+
+    last_emit_by_speaker[speaker] = {"ts": now, "text": normalized}
+    return True
 
 
 def send(obj: Dict[str, Any]) -> None:
@@ -101,11 +152,13 @@ def transcribe_chunk(payload: Dict[str, Any]) -> Dict[str, Any]:
             tmp_path,
             language=language,
             vad_filter=use_vad,
-            beam_size=1,
+            beam_size=3,
+            best_of=3,
             temperature=0.0,
             condition_on_previous_text=False,
             repetition_penalty=1.2,
-            no_speech_threshold=0.65,
+            no_speech_threshold=0.72,
+            log_prob_threshold=-1.0,
         )
         text = normalize_ws(" ".join((seg.text or "").strip() for seg in segments))
         if is_hallucination_loop(text):
@@ -114,6 +167,13 @@ def transcribe_chunk(payload: Dict[str, Any]) -> Dict[str, Any]:
                 "text": "",
                 "skipped": True,
                 "reason": "hallucination_loop",
+            }
+        if not should_emit_text(speaker, text):
+            return {
+                "speaker": speaker,
+                "text": "",
+                "skipped": True,
+                "reason": "duplicate_or_noise",
             }
         return {
             "speaker": speaker,
