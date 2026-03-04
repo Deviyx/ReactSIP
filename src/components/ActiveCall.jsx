@@ -23,9 +23,8 @@ const ActiveCall = () => {
   const remoteRecorderRef = useRef(null);
 
   const activeCall = [...calls].reverse().find((call) => call && !['ended', 'failed'].includes(call.status));
-  if (!activeCall) return null;
-
-  const timer = useCallTimer(activeCall.startTime);
+  const activeCallId = activeCall?.id || null;
+  const timer = useCallTimer(activeCall?.startTime || null);
 
   const arrayBufferToBase64 = (buffer) => {
     const bytes = new Uint8Array(buffer);
@@ -94,6 +93,7 @@ const ActiveCall = () => {
 
   const startTranscriptionCapture = useCallback(async () => {
     try {
+      if (!activeCallId) return;
       await window.electronAPI?.app?.openTranscriptionWindow?.();
 
       const started = await window.electronAPI?.transcription?.start?.({
@@ -115,13 +115,13 @@ const ActiveCall = () => {
         },
       });
       localStreamRef.current = localStream;
-      localRecorderRef.current = startRecorder(localStream, 'agent', activeCall.id);
+      localRecorderRef.current = startRecorder(localStream, 'agent', activeCallId);
 
       const remoteEl = window.__reactsipRemoteAudioEl;
       const remoteStream = remoteEl?.captureStream?.() || remoteEl?.mozCaptureStream?.() || null;
       if (remoteStream && remoteStream.getAudioTracks().length > 0) {
         remoteStreamRef.current = remoteStream;
-        remoteRecorderRef.current = startRecorder(remoteStream, 'client', activeCall.id);
+        remoteRecorderRef.current = startRecorder(remoteStream, 'client', activeCallId);
       } else {
         toast('Client audio capture is not available yet');
       }
@@ -132,11 +132,11 @@ const ActiveCall = () => {
       toast.error(`Transcription error: ${error?.message || 'unknown'}`);
       await stopTranscriptionCapture();
     }
-  }, [activeCall.id, startRecorder, stopTranscriptionCapture]);
+  }, [activeCallId, startRecorder, stopTranscriptionCapture]);
 
   const onTransfer = () => {
-    if (!transferTarget.trim()) return;
-    transferCall(activeCall.id, transferTarget.trim());
+    if (!transferTarget.trim() || !activeCallId) return;
+    transferCall(activeCallId, transferTarget.trim());
     setTransferOpen(false);
     setTransferTarget('');
   };
@@ -166,6 +166,8 @@ const ActiveCall = () => {
     if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
     stopTranscriptionCapture().catch(() => {});
   }, [stopTranscriptionCapture]);
+
+  if (!activeCall) return null;
 
   return (
     <div className="surface-card active-call-layout">
