@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import sys
 import tempfile
 import traceback
 from typing import Any, Dict, Optional
@@ -160,4 +161,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # Force UTF-8 over stdio to avoid mojibake on Windows when sending JSON to Electron.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stdin.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
     main()

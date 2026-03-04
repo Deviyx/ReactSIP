@@ -11,15 +11,34 @@ const TranscriptionWindow = () => {
     window.electronAPI.onTranscriptionEvent((event) => {
       if (!event?.type) return;
       if (event.type === 'transcript' && event.payload?.text) {
-        setEntries((prev) => [
-          ...prev,
-          {
-            id: `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
-            speaker: event.payload.speaker || 'unknown',
-            text: event.payload.text,
-            time: new Date(),
-          },
-        ]);
+        setEntries((prev) => {
+          const now = Date.now();
+          const speaker = String(event.payload.speaker || 'unknown');
+          const text = String(event.payload.text || '').trim();
+          const normalized = text.toLowerCase().replace(/\s+/g, ' ');
+          if (!normalized) return prev;
+
+          const last = prev[prev.length - 1];
+          if (last) {
+            const lastNorm = String(last.text || '').toLowerCase().replace(/\s+/g, ' ');
+            const isDuplicateSpeaker = String(last.speaker || 'unknown') === speaker;
+            const isDuplicateText = lastNorm === normalized;
+            const isNearInTime = Math.abs(now - new Date(last.time).getTime()) < 4500;
+            if (isDuplicateSpeaker && isDuplicateText && isNearInTime) {
+              return prev;
+            }
+          }
+
+          return [
+            ...prev,
+            {
+              id: `${now}_${Math.random().toString(16).slice(2, 8)}`,
+              speaker,
+              text,
+              time: new Date(now),
+            },
+          ];
+        });
         return;
       }
 
