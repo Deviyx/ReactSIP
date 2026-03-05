@@ -25,6 +25,7 @@ export const useSIPContext = create(
         audio_input_volume: 100,
         audio_output_volume: 100,
         show_debug_tab: false,
+        show_unstable_features: false,
         hyper_compact_mode: false,
         do_not_disturb: false,
       },
@@ -78,6 +79,7 @@ export const useSIPContext = create(
       settings: {
         ...persistedState?.settings,
         show_debug_tab: Boolean(persistedState?.settings?.show_debug_tab),
+        show_unstable_features: Boolean(persistedState?.settings?.show_unstable_features),
         hyper_compact_mode: Boolean(persistedState?.settings?.hyper_compact_mode),
         do_not_disturb: Boolean(persistedState?.settings?.do_not_disturb),
       },

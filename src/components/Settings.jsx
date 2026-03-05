@@ -214,29 +214,6 @@ const Settings = () => {
 
       {activeTab === 'sip' && (
         <>
-          <div className="panel-card panel-card-highlight">
-            <div className="meta-grid settings-meta-grid">
-              <div className="meta-tile">
-                <div className="meta-label">Registration</div>
-                <div className="meta-value">{registrationStatus}</div>
-              </div>
-              <div className="meta-tile">
-                <div className="meta-label">Connection</div>
-                <div className="meta-value">{connectionStatus}</div>
-              </div>
-            </div>
-
-            <div className="field-group">
-              <div className="meta-label">SIP URI</div>
-              <div className="sip-box">
-                <code className="sip-code">{sipUri}</code>
-                <button onClick={copyToClipboard} className="icon-btn" type="button" title="Copy SIP URI">
-                  {copiedSipUri ? <Check size={14} /> : <Copy size={14} />}
-                </button>
-              </div>
-            </div>
-          </div>
-
           <div className="panel-card">
             <h3 className="panel-title">SIP Account</h3>
 
@@ -287,6 +264,29 @@ const Settings = () => {
                 disabled={registrationStatus === 'Registered'}
                 className="field-input"
               />
+            </div>
+          </div>
+
+          <div className="panel-card panel-card-highlight">
+            <div className="meta-grid settings-meta-grid">
+              <div className="meta-tile">
+                <div className="meta-label">Registration</div>
+                <div className="meta-value">{registrationStatus}</div>
+              </div>
+              <div className="meta-tile">
+                <div className="meta-label">Connection</div>
+                <div className="meta-value">{connectionStatus}</div>
+              </div>
+            </div>
+
+            <div className="field-group">
+              <div className="meta-label">SIP URI</div>
+              <div className="sip-box">
+                <code className="sip-code">{sipUri}</code>
+                <button onClick={copyToClipboard} className="icon-btn" type="button" title="Copy SIP URI">
+                  {copiedSipUri ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -453,6 +453,18 @@ const Settings = () => {
                   className="toggle-checkbox"
                   checked={Boolean(settings.show_debug_tab)}
                   onChange={(e) => setSettings({ show_debug_tab: e.target.checked })}
+                />
+              </label>
+            </div>
+
+            <div className="field-group">
+              <label className="field-label field-label-row">
+                Enable unstable features [unstable]
+                <input
+                  type="checkbox"
+                  className="toggle-checkbox"
+                  checked={Boolean(settings.show_unstable_features)}
+                  onChange={(e) => setSettings({ show_unstable_features: e.target.checked })}
                 />
               </label>
             </div>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Captions, Mic, PauseCircle, PhoneOff, UserRound, Volume2 } from 'lucide-react';
+import { Captions, Keyboard, Mic, PauseCircle, PhoneOff, UserRound, Volume2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSIPContext } from '../context/SIPContext';
 import { useSIP } from '../hooks/useSIP';
@@ -9,7 +9,7 @@ import { useDtmfTone } from '../hooks/useDtmfTone';
 const DTMF = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 
 const ActiveCall = () => {
-  const { calls } = useSIPContext();
+  const { calls, settings } = useSIPContext();
   const { hangupCall, transferCall, muteCall, holdCall, sendDTMF, isMuted, isOnHold } = useSIP();
   const { playTone } = useDtmfTone();
   const [transferOpen, setTransferOpen] = useState(false);
@@ -19,6 +19,7 @@ const ActiveCall = () => {
   const [runtimeBusy, setRuntimeBusy] = useState(false);
   const [runtimeProgress, setRuntimeProgress] = useState(0);
   const [runtimeStatus, setRuntimeStatus] = useState('idle');
+  const [showDialer, setShowDialer] = useState(false);
   const pressTimerRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
@@ -197,7 +198,14 @@ const ActiveCall = () => {
     sendDTMF(tone);
   };
 
-  const meter = activeCall.status === 'connected' ? 82 : activeCall.status === 'ringing' ? 58 : 36;
+  const meter = activeCall.status === 'connected' ? 78 : activeCall.status === 'ringing' ? 48 : activeCall.status === 'holding' ? 22 : 34;
+  const signalLabel = activeCall.status === 'connected'
+    ? 'Stable'
+    : activeCall.status === 'ringing'
+      ? 'Negotiating'
+      : activeCall.status === 'holding'
+        ? 'On hold'
+        : 'Checking';
 
   useEffect(() => () => {
     if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
@@ -248,7 +256,8 @@ const ActiveCall = () => {
       <div className="active-meter">
         <div className="meter-head">
           <Volume2 size={12} />
-          Signal
+          Call state
+          <span className="meter-caption">{signalLabel}</span>
         </div>
         <div className="meter-track">
           <div className="meter-fill" style={{ width: `${meter}%` }} />
@@ -268,21 +277,29 @@ const ActiveCall = () => {
           <UserRound size={16} />
           Transfer
         </button>
+        <button type="button" className={`state-btn ${showDialer ? 'state-btn-on' : ''}`} onClick={() => setShowDialer((prev) => !prev)} title="Open keypad">
+          <Keyboard size={16} />
+          Keypad
+        </button>
       </div>
 
-      <button
-        type="button"
-        className={`secondary-btn ${transcribing ? 'state-btn-on' : ''}`}
-        onClick={() => (transcribing ? stopTranscriptionCapture() : startTranscriptionCapture())}
-        disabled={runtimeBusy}
-        title={transcribing ? 'Stop live transcription' : 'Start live transcription'}
-      >
-        <Captions size={16} />
-        {runtimeBusy ? `Installing Whisper... ${runtimeProgress}%` : transcribing ? 'Stop Transcript' : 'Live Transcript'}
-      </button>
-      <div className="mini-hint" style={{ marginTop: 6 }}>
-        Whisper: {runtimeStatus}
-      </div>
+      {Boolean(settings?.show_unstable_features) && (
+        <>
+          <button
+            type="button"
+            className={`secondary-btn ${transcribing ? 'state-btn-on' : ''}`}
+            onClick={() => (transcribing ? stopTranscriptionCapture() : startTranscriptionCapture())}
+            disabled={runtimeBusy}
+            title={transcribing ? 'Stop live transcription' : 'Start live transcription'}
+          >
+            <Captions size={16} />
+            {runtimeBusy ? `Installing Whisper... ${runtimeProgress}%` : transcribing ? 'Stop Transcript' : 'Live Transcript [unstable]'}
+          </button>
+          <div className="mini-hint" style={{ marginTop: 6 }}>
+            Whisper: {runtimeStatus}
+          </div>
+        </>
+      )}
 
       {transferOpen && (
         <div className="transfer-panel">
@@ -305,19 +322,31 @@ const ActiveCall = () => {
         </div>
       )}
 
-      <div className="dtmf-grid">
-        {DTMF.map((tone) => (
-          <button
-            key={tone}
-            type="button"
-            className={`dtmf-btn ${pressedTone === tone ? 'dtmf-btn-pressed' : ''}`}
-            onClick={() => onDTMF(tone)}
-            title={`Send DTMF ${tone}`}
-          >
-            {tone}
-          </button>
-        ))}
-      </div>
+      {showDialer && (
+        <div className="dtmf-popup-wrap">
+          <div className="dtmf-popup">
+            <div className="dtmf-popup-head">
+              <span>DTMF keypad</span>
+              <button type="button" className="icon-btn" onClick={() => setShowDialer(false)} title="Close keypad">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="dtmf-grid">
+              {DTMF.map((tone) => (
+                <button
+                  key={tone}
+                  type="button"
+                  className={`dtmf-btn ${pressedTone === tone ? 'dtmf-btn-pressed' : ''}`}
+                  onClick={() => onDTMF(tone)}
+                  title={`Send DTMF ${tone}`}
+                >
+                  {tone}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <button type="button" className="danger-btn hangup-btn" onClick={() => hangupCall(activeCall.id)} title="End call">
         <PhoneOff size={16} />

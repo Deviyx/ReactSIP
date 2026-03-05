@@ -116,6 +116,9 @@ export const useSIP = () => {
   const toneContextRef = useRef(null);
   const ringbackTimerRef = useRef(null);
   const ringbackStartedRef = useRef(false);
+  const callProgressRef = useRef(new Map());
+  const errorAggregateRef = useRef({ count: 0, timer: null });
+  const lastRegistrationToastRef = useRef('');
 
   useEffect(() => {
     callsRef.current = calls;
@@ -144,6 +147,51 @@ export const useSIP = () => {
       ringbackTimerRef.current = null;
     }
     ringbackStartedRef.current = false;
+  }, []);
+
+  const notifyErrorAggregated = useCallback((message) => {
+    const state = errorAggregateRef.current;
+    state.count += 1;
+    toast.error(`An error occurred (${state.count}x). Check Debug.`, { id: 'error-aggregate' });
+    if (state.timer) clearTimeout(state.timer);
+    state.timer = setTimeout(() => {
+      state.count = 0;
+      state.timer = null;
+    }, 6500);
+    if (message) {
+      console.error('[SIP]', message);
+    }
+  }, []);
+
+  const updateCallStageToast = useCallback((callId, step, total, label, done = false) => {
+    if (!callId) return;
+    const prev = callProgressRef.current.get(callId) || { step: 0, total };
+    const nextStep = Math.max(prev.step, step);
+    callProgressRef.current.set(callId, { step: nextStep, total });
+    const base = `${nextStep}/${total} ${label}`;
+    if (done) {
+      toast.success(`${total}/${total} Call ready`, { id: `call-progress-${callId}` });
+      return;
+    }
+    toast.loading(base, { id: `call-progress-${callId}` });
+  }, []);
+
+  const clearCallStageToast = useCallback((callId, terminalLabel = '') => {
+    if (!callId) return;
+    if (callProgressRef.current.has(callId)) {
+      toast.dismiss(`call-progress-${callId}`);
+      if (terminalLabel) {
+        toast(terminalLabel, { id: `call-progress-${callId}` });
+      }
+      callProgressRef.current.delete(callId);
+    }
+  }, []);
+
+  const clearAllCallStageToasts = useCallback(() => {
+    [...callProgressRef.current.keys()].forEach((callId) => {
+      toast.dismiss(`call-progress-${callId}`);
+    });
+    callProgressRef.current.clear();
   }, []);
 
   const startRingback = useCallback(async () => {
@@ -418,6 +466,7 @@ export const useSIP = () => {
         console.error('Disconnect error:', error);
       }
       stopRingback();
+      clearAllCallStageToasts();
       setConnectionStatus('Disconnected');
       setRegistrationStatus('Unregistered');
       setSipUri(null);
@@ -434,6 +483,7 @@ export const useSIP = () => {
     });
     webSessions.clear();
     stopRingback();
+    clearAllCallStageToasts();
     if (webUA) {
       try {
         webUA.stop();
@@ -448,7 +498,7 @@ export const useSIP = () => {
     setSession(null);
     setIncomingCallData(null);
     toast.success('Disconnected');
-  }, [setConnectionStatus, setIncomingCallData, setRegistrationStatus, setSession, setSipUri, settings, stopRingback]);
+  }, [clearAllCallStageToasts, setConnectionStatus, setIncomingCallData, setRegistrationStatus, setSession, setSipUri, settings, stopRingback]);
 
   const makeCall = useCallback(async (number) => {
     if (!number) {
@@ -525,7 +575,7 @@ export const useSIP = () => {
         const result = await window.electronAPI.sip.accept(callId);
         if (result.success) {
           stopRingback();
-          toast.success('Call accepted');
+          setIncomingCallData(null);
         } else {
           const errText = String(result.error || '').toLowerCase();
           if (errText.includes('not found')) {
@@ -569,8 +619,7 @@ export const useSIP = () => {
     if (isUdpMode(settings)) {
       try {
         const result = await window.electronAPI.sip.hangup(callId);
-        if (result.success) toast.success('Call ended');
-        else toast.error(`Hangup failed: ${result.error}`);
+        if (!result.success) toast.error(`Hangup failed: ${result.error}`);
       } catch (error) {
         toast.error(`Hangup error: ${error.message}`);
       }
@@ -645,7 +694,7 @@ export const useSIP = () => {
         if (!result?.success) throw new Error(result?.error || 'Failed to mute');
         setIsMutedLocal(next);
         setMuted(next);
-        toast.success(next ? 'Microphone muted' : 'Microphone unmuted', { id: `mute-${activeCall.id}` });
+          toast.success(next ? 'Microphone muted' : 'Microphone unmuted', { id: `mute-${activeCall.id}` });
       } catch (error) {
         toast.error(`Failed to change mute: ${error.message}`);
       }
@@ -675,7 +724,7 @@ export const useSIP = () => {
         setIsOnHoldLocal(next);
         setOnHold(next);
         updateCall(activeCall.id, { status: next ? 'holding' : 'connected' });
-        toast.success(next ? 'Call on hold' : 'Call resumed', { id: `hold-${activeCall.id}` });
+          toast.success(next ? 'Call on hold' : 'Call resumed', { id: `hold-${activeCall.id}` });
       } catch (error) {
         toast.error(`Hold failed: ${error.message}`);
       }
@@ -735,6 +784,10 @@ export const useSIP = () => {
 
     window.electronAPI.onRegistrationStatus((status) => {
       setRegistrationStatus(status);
+      if (status === 'Registered' && lastRegistrationToastRef.current !== 'Registered') {
+        toast.success('Connected successfully', { id: 'sip-connected' });
+      }
+      lastRegistrationToastRef.current = status;
     });
 
     window.electronAPI.onIncomingCall((callData) => {
@@ -774,16 +827,19 @@ export const useSIP = () => {
         return;
       }
 
-      const toastId = `call-state-${event.id}`;
       if (normalizedState === 'connected') {
         stopRingback();
-        toast.success('Call connected', { id: toastId });
+        updateCallStageToast(event.id, 8, 8, 'Connected', true);
       } else if (normalizedState === 'ringing') {
         const currentCall = findCallForEvent(callsRef.current, event.id);
         if ((currentCall?.direction || '').toLowerCase() === 'outgoing') {
           startRingback().catch(() => {});
-          toast('Calling...', { id: toastId });
+          updateCallStageToast(event.id, 2, 8, 'Ringing');
         }
+      } else if (normalizedState === 'calling') {
+        updateCallStageToast(event.id, 1, 8, 'Dialing');
+      } else if (normalizedState === 'holding') {
+        updateCallStageToast(event.id, 5, 8, 'On hold');
       } else if (normalizedState === 'failed') {
         terminalStateNotified.add(event.id);
         stopRingback();
@@ -805,9 +861,8 @@ export const useSIP = () => {
           });
           callHistoryLogged.add(event.id);
         }
-        const currentCall = findCallForEvent(callsRef.current, event.id);
-        const isIncoming = (currentCall?.direction || '').toLowerCase() === 'incoming';
-        toast.error(isIncoming ? 'Missed call' : 'Call failed', { id: toastId });
+        clearCallStageToast(event.id);
+        notifyErrorAggregated(`Call ${event.id} failed`);
         callStateSeen.delete(event.id);
       } else if (normalizedState === 'ended') {
         terminalStateNotified.add(event.id);
@@ -830,7 +885,12 @@ export const useSIP = () => {
           });
           callHistoryLogged.add(event.id);
         }
-        toast('Call ended', { id: toastId });
+        clearCallStageToast(event.id, 'Call ended');
+        callStateSeen.delete(event.id);
+      } else if (isTerminalState) {
+        terminalStateNotified.add(event.id);
+        stopRingback();
+        clearCallStageToast(event.id, 'Call ended');
         callStateSeen.delete(event.id);
       }
     });
@@ -838,16 +898,15 @@ export const useSIP = () => {
     window.electronAPI.onCallNotification((payload) => {
       if (!payload?.message) return;
       if (/^call ended$/i.test(payload.message) || /^call failed$/i.test(payload.message)) return;
-      const toastId = `call-note-${payload.callId || 'global'}`;
-      if (payload.level === 'error') toast.error(payload.message, { id: toastId });
-      else if (payload.level === 'success') toast.success(payload.message, { id: toastId });
-      else toast(payload.message, { id: toastId });
+      if (payload.level === 'error') {
+        notifyErrorAggregated(payload.message);
+      }
     });
 
     if (window.electronAPI.onEngineError) {
       window.electronAPI.onEngineError((payload) => {
         if (!payload?.message) return;
-        toast.error(`Engine: ${payload.message}`, { id: `engine-${payload.code || 'err'}` });
+        notifyErrorAggregated(payload.message);
       });
     }
 
@@ -856,14 +915,14 @@ export const useSIP = () => {
         if (evt?.type === 'call_media_state' && evt?.payload?.callId) {
           if (evt.payload.mediaActive) {
             updateCall(evt.payload.callId, { status: 'connected' });
-            toast.success('Audio media active', { id: `media-${evt.payload.callId}` });
+            updateCallStageToast(evt.payload.callId, 6, 8, 'Media ready');
           } else {
-            toast('Audio media inactive', { id: `media-${evt.payload.callId}` });
+            updateCallStageToast(evt.payload.callId, 4, 8, 'Negotiating media');
           }
         }
       });
     }
-  }, [addCall, addToHistory, playHangupTone, setConnectionStatus, setIncomingCallData, setRegistrationStatus, settings, startRingback, stopRingback, updateCall]);
+  }, [addCall, addToHistory, clearCallStageToast, notifyErrorAggregated, playHangupTone, setConnectionStatus, setIncomingCallData, setRegistrationStatus, settings, startRingback, stopRingback, updateCall, updateCallStageToast]);
 
   return {
     connect,

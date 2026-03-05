@@ -17,11 +17,13 @@ function App() {
   const isTranscriptionWindow = typeof window !== 'undefined' && window.location.hash === '#transcription';
   const [activeTab, setActiveTab] = useState('dialpad');
   const [theme, setTheme] = useState(() => localStorage.getItem('microsip-theme') || 'light');
-  const { calls, settings } = useSIPContext();
+  const { calls, settings, incomingCallData } = useSIPContext();
   const { micPermission } = useAudio({ autoRequest: false });
   const showDebugTab = Boolean(settings?.show_debug_tab);
 
-  const showActiveCall = Array.isArray(calls) && calls.some((call) => {
+  const hasPendingIncoming = Boolean(incomingCallData);
+
+  const showActiveCall = !hasPendingIncoming && Array.isArray(calls) && calls.some((call) => {
     if (!call) return false;
     const status = String(call.status || '').toLowerCase();
     const direction = String(call.direction || '').toLowerCase();
