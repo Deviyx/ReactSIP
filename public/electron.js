@@ -31,6 +31,19 @@ const ENGINE_READY_TIMEOUT_MS = 6000;
 const UPDATE_CHECK_INTERVAL_MS = 1000 * 60 * 60 * 4;
 const WINDOW_NORMAL = { width: 360, height: 700, minWidth: 340, minHeight: 620 };
 const WINDOW_COMPACT = { width: 320, height: 600, minWidth: 300, minHeight: 520 };
+
+function resolveAppIconPath() {
+  const candidates = [
+    path.join(app.getAppPath(), 'icon', 'icon.png'),
+    path.join(process.cwd(), 'icon', 'icon.png'),
+    path.join(process.resourcesPath, 'icon.png'),
+    path.join(process.resourcesPath, 'icon', 'icon.png'),
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
+const APP_ICON = resolveAppIconPath();
+
 const WHISPER_RUNTIME_ASSET = process.env.WHISPER_RUNTIME_ASSET || 'whisper-runtime-win-x64.zip';
 const WHISPER_RUNTIME_URL = process.env.WHISPER_RUNTIME_URL || `https://github.com/Deviyx/ReactSIP/releases/latest/download/${WHISPER_RUNTIME_ASSET}`;
 const WHISPER_RUNTIME_REPO = process.env.WHISPER_RUNTIME_REPO || 'Deviyx/ReactSIP';
@@ -1748,6 +1761,7 @@ function createWindow() {
     fullscreenable: false,
     autoHideMenuBar: true,
     title: 'ReactSIP',
+    icon: APP_ICON,
     frame: false,
     titleBarStyle: 'hidden',
     backgroundColor: '#0f172a',
@@ -1827,6 +1841,7 @@ function createTranscriptionWindow() {
     maximizable: true,
     autoHideMenuBar: true,
     title: 'ReactSIP Live Transcript',
+    icon: APP_ICON,
     frame: false,
     titleBarStyle: 'hidden',
     backgroundColor: '#0f172a',

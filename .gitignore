@@ -75,6 +75,8 @@ native/sip-agent/build-pjsip/
 *.obj
 *.pdb
 *.tlog
+__pycache__/
+*.pyc
 RELEASE_UPLOAD_PLAYBOOK.local.md
 release/
 renderer-dist/
